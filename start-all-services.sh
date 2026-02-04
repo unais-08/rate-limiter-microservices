@@ -24,6 +24,16 @@ if [ -f "src/server.js" ]; then
   sleep 2
 fi
 
+# Start Usage Analytics Service
+cd /home/unais/Desktop/Ratelimiter/usage-analytics-service
+if [ -f "src/index.js" ]; then
+  echo "Starting Usage Analytics Service (port 3003)..."
+  node src/index.js > /tmp/analytics.log 2>&1 &
+  ANALYTICS_PID=$!
+  echo "  PID: $ANALYTICS_PID"
+  sleep 2
+fi
+
 # Start API Gateway
 cd /home/unais/Desktop/Ratelimiter/api-gateway-service
 if [ -f "src/server.js" ]; then
@@ -55,6 +65,12 @@ else
   echo "❌ Rate Limiter (3002) - Failed to start"
 fi
 
+if curl -s http://localhost:3003/health > /dev/null 2>&1; then
+  echo "✅ Usage Analytics (3003) - Running"
+else
+  echo "❌ Usage Analytics (3003) - Failed to start"
+fi
+
 if curl -s http://localhost:3000/health > /dev/null 2>&1; then
   echo "✅ API Gateway (3000) - Running"
 else
@@ -70,4 +86,5 @@ echo "   ./test-complete-system.sh"
 echo ""
 echo "🛑 Stop all services:"
 echo "   pkill -f 'node src/server.js'"
+echo "   pkill -f 'node src/index.js'"
 echo ""
