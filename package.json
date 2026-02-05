@@ -1,8 +1,13 @@
 {
-  "name": "ratelimiter",
+  "name": "ratelimiter-microservices",
   "version": "1.0.0",
   "description": "Rate Limiter System with API Gateway and Redis built with Microservices architecture",
   
+  "scripts": {
+    "test": "./test/start-all-services.sh",
+    "stop": "./test/stop-all-services.sh"
+
+  },
   "keywords": [
     "rate-limiter",
     "api-gateway",

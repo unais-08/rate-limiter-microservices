@@ -34,6 +34,16 @@ if [ -f "src/index.js" ]; then
   sleep 2
 fi
 
+# Start Admin Service
+cd /home/unais/Desktop/Ratelimiter/admin-service
+if [ -f "src/server.js" ]; then
+  echo "Starting Admin Service (port 3004)..."
+  node src/server.js > /tmp/admin.log 2>&1 &
+  ADMIN_PID=$!
+  echo "  PID: $ADMIN_PID"
+  sleep 2
+fi
+
 # Start API Gateway
 cd /home/unais/Desktop/Ratelimiter/api-gateway-service
 if [ -f "src/server.js" ]; then
@@ -69,6 +79,12 @@ if curl -s http://localhost:3003/health > /dev/null 2>&1; then
   echo "✅ Usage Analytics (3003) - Running"
 else
   echo "❌ Usage Analytics (3003) - Failed to start"
+fi
+
+if curl -s http://localhost:3004/health > /dev/null 2>&1; then
+  echo "✅ Admin Service (3004) - Running"
+else
+  echo "❌ Admin Service (3004) - Failed to start"
 fi
 
 if curl -s http://localhost:3000/health > /dev/null 2>&1; then
