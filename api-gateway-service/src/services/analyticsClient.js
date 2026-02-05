@@ -26,7 +26,7 @@ class AnalyticsClient {
 
     try {
       const response = await axios.post(
-        `${this.analyticsServiceUrl}/api/analytics/log`,
+        `${this.analyticsServiceUrl}/api/v1/analytics/log`,
         requestData,
         {
           timeout: 2000, // 2 second timeout
@@ -53,7 +53,7 @@ class AnalyticsClient {
   async getApiKeyAnalytics(apiKey) {
     try {
       const response = await axios.get(
-        `${this.analyticsServiceUrl}/api/analytics/api-keys/${apiKey}`,
+        `${this.analyticsServiceUrl}/api/v1/analytics/api-keys/${apiKey}`,
         {
           timeout: 5000,
         },
@@ -74,7 +74,7 @@ class AnalyticsClient {
   async getSystemStats() {
     try {
       const response = await axios.get(
-        `${this.analyticsServiceUrl}/api/analytics/system-stats`,
+        `${this.analyticsServiceUrl}/api/v1/analytics/system-stats`,
         {
           timeout: 5000,
         },

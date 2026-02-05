@@ -47,7 +47,7 @@ class MonitoringService {
   async getSystemMetrics() {
     try {
       const response = await axios.get(
-        `${config.analyticsUrl}/api/analytics/system-stats`,
+        `${config.analyticsUrl}/api/v1/analytics/system-stats`,
         {
           timeout: 5000,
         },
@@ -65,7 +65,7 @@ class MonitoringService {
   async getTopRateLimitedKeys(limit = 10) {
     try {
       const response = await axios.get(
-        `${config.analyticsUrl}/api/analytics/top-rate-limited?limit=${limit}`,
+        `${config.analyticsUrl}/api/v1/analytics/top-rate-limited?limit=${limit}`,
         { timeout: 5000 },
       );
       return response.data.data;
@@ -81,7 +81,7 @@ class MonitoringService {
   async getTimeSeriesData(hours = 24, interval = "hour") {
     try {
       const response = await axios.get(
-        `${config.analyticsUrl}/api/analytics/time-series?hours=${hours}&interval=${interval}`,
+        `${config.analyticsUrl}/api/v1/analytics/time-series?hours=${hours}&interval=${interval}`,
         { timeout: 5000 },
       );
       return response.data.data;
@@ -97,7 +97,7 @@ class MonitoringService {
   async getEndpointAnalytics() {
     try {
       const response = await axios.get(
-        `${config.analyticsUrl}/api/analytics/endpoints`,
+        `${config.analyticsUrl}/api/v1/analytics/endpoints`,
         {
           timeout: 5000,
         },

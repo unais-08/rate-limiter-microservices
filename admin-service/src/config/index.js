@@ -27,8 +27,8 @@ export default {
     host: process.env.POSTGRES_HOST || "localhost",
     port: parseInt(process.env.POSTGRES_PORT) || 5432,
     database: process.env.POSTGRES_DB || "rate_limiter_analytics",
-    user: process.env.POSTGRES_USER || "postgres",
-    password: process.env.POSTGRES_PASSWORD || "postgres",
+    user: process.env.POSTGRES_USER || "developer",
+    password: process.env.POSTGRES_PASSWORD || "dev",
   },
 
   // Service
