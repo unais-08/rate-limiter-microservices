@@ -2,11 +2,10 @@
   "name": "ratelimiter-microservices",
   "version": "1.0.0",
   "description": "Rate Limiter System with API Gateway and Redis built with Microservices architecture",
-  
   "scripts": {
+    "dev": "concurrently --names \"Backend,RateLimiter,Gateway,Analytics,Admin\" -c \"bgBlue.bold,bgMagenta.bold,bgGreen.bold,bgYellow.bold,bgCyan.bold\" \"cd backend-service && npm start\" \"cd rate-limiter-service && npm start\" \"cd api-gateway-service && npm start\" \"cd usage-analytics-service && npm start\" \"cd admin-service && npm start\"",
     "test": "./test/start-all-services.sh",
     "stop": "./test/stop-all-services.sh"
-
   },
   "keywords": [
     "rate-limiter",
@@ -16,6 +15,8 @@
     "nodejs"
   ],
   "author": "Shaikh",
-  "license": "MIT"
-  
+  "license": "MIT",
+  "dependencies": {
+    "concurrently": "^9.2.1"
+  }
 }

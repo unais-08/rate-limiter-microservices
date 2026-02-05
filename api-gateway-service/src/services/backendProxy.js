@@ -92,7 +92,7 @@ class BackendProxy {
    * @returns {Object} - Prepared request data
    */
   _prepareRequest(req) {
-    // Extract path (remove /api prefix if gateway uses it)
+    // Forward the full path to backend
     const path = req.path;
 
     // Get query parameters

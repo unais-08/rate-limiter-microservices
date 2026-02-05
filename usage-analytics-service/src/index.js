@@ -28,7 +28,7 @@ app.get("/health", (req, res) => {
 });
 
 // Routes
-app.use("/api/analytics", analyticsRoutes);
+app.use("/api/v1/analytics", analyticsRoutes);
 
 // 404 handler
 app.use((req, res) => {

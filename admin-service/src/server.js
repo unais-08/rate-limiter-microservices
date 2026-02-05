@@ -22,7 +22,7 @@ app.use(express.json());
 app.use(morgan("dev"));
 
 // Public routes
-app.post("/api/admin/login", login);
+app.post("/api/v1/admin/login", login);
 
 app.get("/health", (req, res) => {
   res.json({
@@ -33,8 +33,8 @@ app.get("/health", (req, res) => {
 });
 
 // Protected routes (require authentication)
-app.use("/api/admin", authMiddleware, apiKeyRoutes);
-app.use("/api/admin/monitoring", authMiddleware, monitoringRoutes);
+app.use("/api/v1/admin", authMiddleware, apiKeyRoutes);
+app.use("/api/v1/admin/monitoring", authMiddleware, monitoringRoutes);
 
 // 404 handler
 app.use((req, res) => {

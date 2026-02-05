@@ -1,0 +1,1200 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rate Limiter Microservices API</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
+
+      body {
+        font-family: "Inter", sans-serif;
+      }
+
+      /* Custom Scrollbar */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #1e293b;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #475569;
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #64748b;
+      }
+
+      .method-tag {
+        font-size: 0.75rem;
+        font-weight: 700;
+        padding: 0.125rem 0.5rem;
+        border-radius: 0.25rem;
+        text-transform: uppercase;
+        width: 80px;
+        text-align: center;
+        display: inline-block;
+      }
+
+      .get {
+        background-color: #dbeafe;
+        color: #1e40af;
+        border: 1px solid #93c5fd;
+      }
+      .post {
+        background-color: #dcfce7;
+        color: #166534;
+        border: 1px solid #86efac;
+      }
+      .put {
+        background-color: #ffedd5;
+        color: #9a3412;
+        border: 1px solid #fdba74;
+      }
+      .delete {
+        background-color: #fee2e2;
+        color: #991b1b;
+        border: 1px solid #fca5a5;
+      }
+
+      .sidebar-link {
+        transition: all 0.2s;
+        border-left: 3px solid transparent;
+      }
+      .sidebar-link:hover,
+      .sidebar-link.active {
+        background-color: #1e293b;
+        border-left-color: #3b82f6;
+        color: #ffffff;
+      }
+
+      .content-section {
+        display: none;
+      }
+      .content-section.active {
+        display: block;
+        animation: fadeIn 0.3s ease-in-out;
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      pre {
+        border-radius: 0.5rem;
+        margin-top: 1rem;
+        margin-bottom: 1rem;
+        overflow-x: auto;
+      }
+
+      .glass {
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gray-50 text-gray-800 h-screen flex flex-col md:flex-row overflow-hidden relative"
+  >
+    <!-- Mobile Header -->
+    <div
+      class="md:hidden bg-slate-900 text-white p-4 flex justify-between items-center border-b border-slate-700 shrink-0 z-20"
+    >
+      <h1 class="text-lg font-bold flex items-center gap-2">
+        <i class="fa-solid fa-layer-group text-blue-500"></i> RateLimiter API
+      </h1>
+      <button
+        onclick="toggleSidebar()"
+        class="text-white focus:outline-none p-1"
+      >
+        <i class="fa-solid fa-bars text-xl"></i>
+      </button>
+    </div>
+
+    <!-- Mobile Overlay -->
+    <div
+      id="mobile-overlay"
+      onclick="toggleSidebar()"
+      class="fixed inset-0 bg-black/50 z-30 hidden md:hidden glass transition-opacity"
+    ></div>
+
+    <!-- Sidebar -->
+    <aside
+      id="sidebar"
+      class="w-72 bg-slate-900 text-slate-300 flex flex-col flex-shrink-0 h-full overflow-y-auto border-r border-slate-700 shadow-xl fixed md:static inset-y-0 left-0 transform -translate-x-full md:translate-x-0 transition-transform duration-300 ease-in-out z-40"
+    >
+      <div
+        class="p-6 border-b border-slate-700 sticky top-0 bg-slate-900 z-10 flex justify-between items-start"
+      >
+        <div>
+          <h1 class="text-xl font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-layer-group text-blue-500"></i>
+            RateLimiter <span class="text-blue-500">API</span>
+          </h1>
+          <p class="text-xs text-slate-400 mt-2">
+            v1.0.0 • Professional Reference
+          </p>
+        </div>
+        <!-- Close button for mobile -->
+        <button
+          onclick="toggleSidebar()"
+          class="md:hidden text-slate-400 hover:text-white"
+        >
+          <i class="fa-solid fa-xmark text-xl"></i>
+        </button>
+      </div>
+
+      <nav class="flex-1 py-6 px-3 space-y-1">
+        <div
+          class="px-3 pb-2 text-xs font-semibold text-slate-500 uppercase tracking-wider"
+        >
+          Getting Started
+        </div>
+        <a
+          href="#"
+          onclick="showSection('overview')"
+          id="link-overview"
+          class="sidebar-link active flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-r-md"
+        >
+          <i class="fa-solid fa-house w-5 text-center"></i> Overview
+        </a>
+        <a
+          href="#"
+          onclick="showSection('authentication')"
+          id="link-authentication"
+          class="sidebar-link flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-r-md"
+        >
+          <i class="fa-solid fa-key w-5 text-center"></i> Authentication
+        </a>
+
+        <div
+          class="px-3 py-2 mt-4 text-xs font-semibold text-slate-500 uppercase tracking-wider"
+        >
+          Services
+        </div>
+
+        <a
+          href="#"
+          onclick="showSection('gateway')"
+          id="link-gateway"
+          class="sidebar-link flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-r-md"
+        >
+          <i class="fa-solid fa-server w-5 text-center"></i> API Gateway
+        </a>
+        <a
+          href="#"
+          onclick="showSection('backend')"
+          id="link-backend"
+          class="sidebar-link flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-r-md"
+        >
+          <i class="fa-solid fa-database w-5 text-center"></i> Backend Service
+        </a>
+        <a
+          href="#"
+          onclick="showSection('admin')"
+          id="link-admin"
+          class="sidebar-link flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-r-md"
+        >
+          <i class="fa-solid fa-user-shield w-5 text-center"></i> Admin Service
+        </a>
+        <a
+          href="#"
+          onclick="showSection('analytics')"
+          id="link-analytics"
+          class="sidebar-link flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-r-md"
+        >
+          <i class="fa-solid fa-chart-line w-5 text-center"></i> Analytics
+          Service
+        </a>
+        <a
+          href="#"
+          onclick="showSection('ratelimit')"
+          id="link-ratelimit"
+          class="sidebar-link flex items-center gap-3 px-3 py-2 text-sm font-medium rounded-r-md"
+        >
+          <i class="fa-solid fa-gauge-high w-5 text-center"></i> Rate Limiter
+          Service
+        </a>
+      </nav>
+
+      <div class="p-4 border-t border-slate-700 bg-slate-800/50">
+        <div class="flex items-center gap-3">
+          <div
+            class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold"
+          >
+            RL
+          </div>
+          <div>
+            <p class="text-sm font-medium text-white">Rate Limiter Team</p>
+            <p class="text-xs text-slate-400">Maintained by You</p>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main
+      class="flex-1 overflow-y-auto bg-gray-50 p-4 md:p-8 scroll-smooth w-full"
+      id="main-container"
+    >
+      <div class="max-w-5xl mx-auto pb-20">
+        <!-- Overview Section -->
+        <section id="overview" class="content-section active">
+          <div class="mb-10 pb-6 border-b border-gray-200">
+            <h2 class="text-4xl font-bold text-gray-900 mb-4">
+              Rate Limiter Microservices API
+            </h2>
+            <p class="text-lg text-gray-600">
+              Comprehensive documentation for the Rate Limiter Microservices
+              Platform. This API provides rate limiting, analytics, and
+              centralized gateway access for your backend services.
+            </p>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+            <div
+              class="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+            >
+              <h3
+                class="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2"
+              >
+                <i class="fa-solid fa-circle-info text-blue-500"></i> System
+                Info
+              </h3>
+              <ul class="space-y-3 text-sm text-gray-600">
+                <li class="flex justify-between">
+                  <span>Version:</span>
+                  <span class="font-mono bg-gray-100 px-2 py-1 rounded"
+                    >1.0.0</span
+                  >
+                </li>
+                <li class="flex justify-between">
+                  <span>Base URL:</span>
+                  <span class="font-mono bg-gray-100 px-2 py-1 rounded"
+                    >http://localhost:3000</span
+                  >
+                </li>
+                <li class="flex justify-between">
+                  <span>Architecture:</span>
+                  <span>Microservices (Node.js)</span>
+                </li>
+              </ul>
+            </div>
+            <div
+              class="bg-white p-6 rounded-xl shadow-sm border border-gray-200"
+            >
+              <h3
+                class="text-lg font-semibold text-gray-900 mb-2 flex items-center gap-2"
+              >
+                <i class="fa-solid fa-code text-purple-500"></i> Quick Links
+              </h3>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  onclick="showSection('gateway')"
+                  class="px-3 py-1.5 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition"
+                >
+                  Gateway API
+                </button>
+                <button
+                  onclick="showSection('admin')"
+                  class="px-3 py-1.5 text-sm bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition"
+                >
+                  Admin API
+                </button>
+                <button
+                  onclick="showSection('ratelimit')"
+                  class="px-3 py-1.5 text-sm bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition"
+                >
+                  Rate Limiting
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <h3 class="text-2xl font-bold text-gray-800 mb-4">
+            Architecture Flow
+          </h3>
+          <div class="bg-slate-900 rounded-xl p-6 mb-8 text-center">
+            <div class="text-slate-300 font-mono text-sm leading-relaxed">
+              Client Request &rarr;
+              <span class="text-green-400">API Gateway (3000)</span> &rarr;
+              <span class="text-blue-400">Rate Limiter (3002)</span> &rarr;
+              <span class="text-yellow-400">Analytics (3003)</span> &rarr;
+              <span class="text-purple-400">Backend (3001)</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Authentication Section -->
+        <section id="authentication" class="content-section">
+          <div class="mb-10 pb-6 border-b border-gray-200">
+            <h2 class="text-3xl font-bold text-gray-900 mb-2">
+              Authentication
+            </h2>
+            <p class="text-gray-600">
+              All requests to protected endpoints require authentication.
+            </p>
+          </div>
+
+          <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-8">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <i class="fa-solid fa-circle-info text-blue-500"></i>
+              </div>
+              <div class="ml-3">
+                <p class="text-sm text-blue-700">
+                  Excluding the Health and Login endpoints, all API requests
+                  must include a valid authentication header.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div class="space-y-8">
+            <div
+              class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+            >
+              <div class="p-6 border-b border-gray-100">
+                <h3 class="text-xl font-bold text-gray-800">
+                  Public API Access
+                </h3>
+                <p class="text-sm text-gray-500 mt-1">
+                  For accessing Backend services through the Gateway.
+                </p>
+              </div>
+              <div class="p-6 bg-gray-50">
+                <p class="text-sm font-semibold mb-2 text-gray-700">
+                  Header Required:
+                </p>
+                <code
+                  class="block bg-gray-800 text-green-400 p-3 rounded-lg mb-4"
+                  >X-API-Key: sk_your_api_key_here</code
+                >
+                <p class="text-sm text-gray-600">
+                  You can generate API keys via the Admin Dashboard or Admin
+                  API.
+                </p>
+              </div>
+            </div>
+
+            <div
+              class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+            >
+              <div class="p-6 border-b border-gray-100">
+                <h3 class="text-xl font-bold text-gray-800">
+                  Admin Panel Access
+                </h3>
+                <p class="text-sm text-gray-500 mt-1">
+                  For managing the system via Admin Service.
+                </p>
+              </div>
+              <div class="p-6 bg-gray-50">
+                <p class="text-sm font-semibold mb-2 text-gray-700">
+                  Header Required:
+                </p>
+                <code
+                  class="block bg-gray-800 text-green-400 p-3 rounded-lg mb-4"
+                  >Authorization: Bearer &lt;jwt_token&gt;</code
+                >
+                <p class="text-sm text-gray-600">
+                  Obtain this token by logging in to the Admin service.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- API Gateway Section -->
+        <section id="gateway" class="content-section">
+          <div class="mb-8 border-b border-gray-200 pb-4">
+            <h2 class="text-3xl font-bold text-gray-900 mb-2">API Gateway</h2>
+            <p class="text-gray-600">
+              Port:
+              <span class="font-mono bg-gray-200 rounded px-1">3000</span> • The
+              primary entry point for all client applications.
+            </p>
+          </div>
+
+          <!-- Endpoint Item -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200 cursor-pointer"
+              onclick="toggleDetails(this)"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag get">GET</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/health</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Service Status</div>
+              <i class="fa-solid fa-chevron-down text-gray-400"></i>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Check the operational status of the API Gateway.
+              </p>
+              <h4
+                class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2"
+              >
+                Response Example
+              </h4>
+              <pre><code class="language-json">{
+  "success": true,
+  "service": "api-gateway-service",
+  "status": "healthy",
+  "uptime": 123.45
+}</code></pre>
+            </div>
+          </div>
+
+          <!-- Endpoint Item -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200 cursor-pointer"
+              onclick="toggleDetails(this)"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag get">GET</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/*</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Proxy to Backend</div>
+              <i class="fa-solid fa-chevron-down text-gray-400"></i>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Proxies requests to the Backend Service with Rate Limiting
+                enabled.
+              </p>
+
+              <h4
+                class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2"
+              >
+                Headers Required
+              </h4>
+              <div
+                class="bg-gray-50 p-3 rounded-lg border border-gray-200 mb-4"
+              >
+                <span class="font-mono text-sm text-red-600">X-API-Key</span>
+                <span class="text-gray-500 text-sm">- Your valid API key</span>
+              </div>
+
+              <h4
+                class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2"
+              >
+                Response Headers
+              </h4>
+              <pre><code class="language-bash">X-RateLimit-Limit: 10
+X-RateLimit-Remaining: 9
+X-RateLimit-Reset: 45</code></pre>
+            </div>
+          </div>
+        </section>
+
+        <!-- Backend Section -->
+        <section id="backend" class="content-section">
+          <div class="mb-8 border-b border-gray-200 pb-4">
+            <h2 class="text-3xl font-bold text-gray-900 mb-2">
+              Backend Service
+            </h2>
+            <p class="text-gray-600">
+              Port:
+              <span class="font-mono bg-gray-200 rounded px-1">3001</span> •
+              Core business logic service.
+            </p>
+          </div>
+
+          <!-- Endpoint: Get Users -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag get">GET</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/users</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">List Users</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Retrieve a list of all users. Useful for testing rate limits.
+              </p>
+              <pre><code class="language-bash">curl -H "X-API-Key: sk_..." http://localhost:3000/api/v1/users</code></pre>
+            </div>
+          </div>
+
+          <!-- Endpoint: Get Users By ID -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag get">GET</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/users/:userId</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Get User By ID</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Get detailed information for a specific user.
+              </p>
+              <pre><code class="language-json">{
+  "success": true,
+  "data": {
+    "userId": "123",
+    "userData": { "id": "123", "name": "Alice" }
+  }
+}</code></pre>
+            </div>
+          </div>
+
+          <!-- Endpoint: Process Data -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag post">POST</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/process</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Process Data</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Process text, images, or any data through the backend pipeline.
+              </p>
+              <h4
+                class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2"
+              >
+                Request Body
+              </h4>
+              <pre><code class="language-json">{
+  "data": "sample text",
+  "type": "text"
+}</code></pre>
+            </div>
+          </div>
+
+          <!-- Endpoint: List Resources -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag get">GET</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/resources</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">List Resources</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                List all available resources with pagination support.
+              </p>
+              <p class="text-sm text-gray-500">
+                Query Params:
+                <code class="bg-gray-100 px-1 rounded">page</code>,
+                <code class="bg-gray-100 px-1 rounded">limit</code>
+              </p>
+            </div>
+          </div>
+
+          <!-- Endpoint: Create Resource -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag post">POST</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/resources</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Create Resource</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">Create a new resource entry.</p>
+              <h4
+                class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2"
+              >
+                Request Body
+              </h4>
+              <pre><code class="language-json">{
+  "name": "Project X",
+  "type": "document"
+}</code></pre>
+            </div>
+          </div>
+
+          <!-- Endpoint: Update Resource -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag put">PUT</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/resources/:id</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Update Resource</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">Update an existing resource.</p>
+              <h4
+                class="text-xs font-bold text-gray-400 uppercase tracking-wide mb-2"
+              >
+                Request Body
+              </h4>
+              <pre><code class="language-json">{
+  "name": "Project X V2"
+}</code></pre>
+            </div>
+          </div>
+
+          <!-- Endpoint: Delete Resource -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag delete">DELETE</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/resources/:id</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Delete Resource</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Remove a resource from the system.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Admin Section -->
+        <section id="admin" class="content-section">
+          <div class="mb-8 border-b border-gray-200 pb-4">
+            <h2 class="text-3xl font-bold text-gray-900 mb-2">Admin Service</h2>
+            <p class="text-gray-600">
+              Port:
+              <span class="font-mono bg-gray-200 rounded px-1">3004</span> •
+              System administration and API key management.
+            </p>
+          </div>
+
+          <!-- Login -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag post">POST</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/admin/login</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Admin Login</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Authenticate to receive a JWT token.
+              </p>
+              <pre><code class="language-json">{
+  "username": "admin",
+  "password": "admin123"
+}</code></pre>
+            </div>
+          </div>
+
+          <h3 class="text-xl font-bold text-gray-800 mb-6 mt-10">
+            API Key Management
+          </h3>
+
+          <!-- List Keys -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag get">GET</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/admin/keys</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">List API Keys</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                List all API keys with status and rate limits.
+              </p>
+            </div>
+          </div>
+
+          <!-- Create Key -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag post">POST</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/admin/keys</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Create API Key</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Generate a new API key with rate limits.
+              </p>
+              <pre><code class="language-json">{
+  "name": "My Client App",
+  "rateLimit": 100
+}</code></pre>
+            </div>
+          </div>
+
+          <!-- Get Key -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag get">GET</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/admin/keys/:apiKey</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Get Key Details</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Get usage stats and details for a key.
+              </p>
+            </div>
+          </div>
+
+          <!-- Update Key -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag put">PUT</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/admin/keys/:apiKey</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Update API Key</div>
+            </div>
+            <div class="p-6">
+              <pre><code class="language-json">{
+  "name": "Updated App",
+  "status": "inactive"
+}</code></pre>
+            </div>
+          </div>
+
+          <!-- Delete Key -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag delete">DELETE</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/admin/keys/:apiKey</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Revoke API Key</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">Permanently delete an API key.</p>
+            </div>
+          </div>
+
+          <h3 class="text-xl font-bold text-gray-800 mb-6 mt-10">
+            System Monitoring
+          </h3>
+
+          <!-- Dashboard -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag get">GET</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/admin/monitoring/dashboard</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Get Dashboard</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Returns comprehensive system metrics for the dashboard UI.
+              </p>
+            </div>
+          </div>
+
+          <!-- Health -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag get">GET</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/admin/monitoring/health</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">System Health</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Check status of all microservices.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Analytics Section -->
+        <section id="analytics" class="content-section">
+          <div class="mb-8 border-b border-gray-200 pb-4">
+            <h2 class="text-3xl font-bold text-gray-900 mb-2">
+              Analytics Service
+            </h2>
+            <p class="text-gray-600">
+              Port:
+              <span class="font-mono bg-gray-200 rounded px-1">3003</span> •
+              Request logging and analysis.
+            </p>
+          </div>
+
+          <!-- Log Request -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag post">POST</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/analytics/log</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Log Request</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Internal endpoint to log request details for analysis.
+              </p>
+              <pre><code class="language-json">{
+  "apiKey": "abc12345",
+  "path": "/api/v1/resource/data",
+  "method": "GET",
+  "status": 200,
+  "responseTime": 45,
+  "timestamp": "2023-10-27T10:00:00Z"
+}</code></pre>
+            </div>
+          </div>
+
+          <!-- System Stats -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag get">GET</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/analytics/system-stats</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">System Statistics</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Get overall system performance statistics.
+              </p>
+              <pre><code class="language-json">{
+  "totalRequests": 15420,
+  "successRate": 98.5,
+  "avgResponseTime": 120,
+  "activeKeys": 45
+}</code></pre>
+            </div>
+          </div>
+
+          <!-- Top Rate Limited -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag get">GET</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/analytics/top-rate-limited</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Top Rate Limited Keys</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Identify which keys are hitting rate limits most frequently.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Rate Limiter Section -->
+        <section id="ratelimit" class="content-section">
+          <div class="mb-8 border-b border-gray-200 pb-4">
+            <h2 class="text-3xl font-bold text-gray-900 mb-2">
+              Rate Limiter Service
+            </h2>
+            <p class="text-gray-600">
+              Port:
+              <span class="font-mono bg-gray-200 rounded px-1">3002</span> •
+              Token bucket engine.
+            </p>
+          </div>
+
+          <div class="bg-slate-900 text-white p-6 rounded-xl mb-6">
+            <h3 class="text-lg font-bold mb-2">Algorithm: Token Bucket</h3>
+            <p class="text-slate-300 text-sm">
+              Tokens are added at a fixed rate (<code
+                class="bg-slate-800 px-1 rounded"
+                >refillRate</code
+              >). Requests consume 1 token. If bucket is empty, request is
+              denied (429).
+            </p>
+          </div>
+
+          <!-- Check Limit -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag post">POST</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/rate-limit/check</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Check Limit</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Internal endpoint used by Gateway to verify if a request is
+                allowed.
+              </p>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h4
+                    class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2"
+                  >
+                    Request Body
+                  </h4>
+                  <pre><code class="language-json">{
+  "apiKey": "abc12345",
+  "cost": 1
+}</code></pre>
+                </div>
+                <div>
+                  <h4
+                    class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-2"
+                  >
+                    Response
+                  </h4>
+                  <pre><code class="language-json">{
+  "allowed": true,
+  "remaining": 9,
+  "resetIn": 45
+}</code></pre>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Get Status -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag get">GET</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/rate-limit/status/:apiKey</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Get Limit Status</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Check the current token balance for a specific key.
+              </p>
+            </div>
+          </div>
+
+          <!-- Reset Limit -->
+          <div
+            class="mb-8 border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm"
+          >
+            <div
+              class="flex items-center justify-between p-4 bg-gray-50 border-b border-gray-200"
+            >
+              <div class="flex items-center gap-3">
+                <span class="method-tag post">POST</span>
+                <span class="font-mono text-sm font-semibold text-gray-700"
+                  >/api/v1/rate-limit/reset</span
+                >
+              </div>
+              <div class="text-sm text-gray-500">Reset Limit (Admin)</div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">
+                Forcefully refill the token bucket for a key.
+              </p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script>
+      function toggleSidebar() {
+        const sidebar = document.getElementById("sidebar");
+        const overlay = document.getElementById("mobile-overlay");
+
+        if (sidebar.classList.contains("-translate-x-full")) {
+          // Open
+          sidebar.classList.remove("-translate-x-full");
+          overlay.classList.remove("hidden");
+        } else {
+          // Close
+          sidebar.classList.add("-translate-x-full");
+          overlay.classList.add("hidden");
+        }
+      }
+
+      function showSection(sectionId) {
+        // Hide all sections
+        document.querySelectorAll(".content-section").forEach((el) => {
+          el.classList.remove("active");
+        });
+
+        // Show selected section
+        document.getElementById(sectionId).classList.add("active");
+
+        // Update sidebar links
+        document.querySelectorAll(".sidebar-link").forEach((el) => {
+          el.classList.remove("active");
+          el.classList.remove(
+            "bg-slate-800",
+            "border-l-blue-500",
+            "text-white",
+          );
+        });
+
+        const activeLink = document.getElementById("link-" + sectionId);
+        activeLink.classList.add("active");
+
+        // Scroll to top
+        document.getElementById("main-container").scrollTop = 0;
+
+        // Auto-close sidebar on mobile if open
+        const sidebar = document.getElementById("sidebar");
+        if (
+          window.innerWidth < 768 &&
+          !sidebar.classList.contains("-translate-x-full")
+        ) {
+          toggleSidebar();
+        }
+      }
+
+      function toggleDetails(element) {
+        // Simple toggle for accordion style if needed
+        // currently the detail content is typically just open in this layout
+      }
+
+      // Initialize Prism for syntax highlighting
+      Prism.highlightAll();
+    </script>
+  </body>
+</html>

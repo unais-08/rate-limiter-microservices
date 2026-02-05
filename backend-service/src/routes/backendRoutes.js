@@ -16,6 +16,21 @@ const router = express.Router();
  */
 
 // User-related endpoints
+router.get("/users", (req, res) => {
+  // Simple endpoint for testing rate limiting
+  res.json({
+    success: true,
+    data: {
+      users: [
+        { id: 1, name: "Alice", email: "alice@example.com" },
+        { id: 2, name: "Bob", email: "bob@example.com" },
+        { id: 3, name: "Charlie", email: "charlie@example.com" },
+      ],
+      count: 3,
+    },
+  });
+});
+
 router.get("/users/:userId", getUserData);
 
 // Data processing endpoint

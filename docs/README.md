@@ -447,6 +447,6 @@ Built as a comprehensive microservices learning project demonstrating:
 
 ---
 
-**Made with ❤️ as a learning project**
+📜 License
 
-For questions or issues, check individual service READMEs or create an issue.
+This project is licensed under the MIT License.
