@@ -48,6 +48,19 @@ class RateLimiterClient {
         resetIn: response.data.data?.resetIn || 0,
       };
     } catch (error) {
+      // Handle 429 Too Many Requests normally - IT IS NOT AN ERROR
+      if (error.response && error.response.status === 429) {
+        logger.warn("Rate limit exceeded (429 received from service)", {
+          apiKey: apiKey.substring(0, 8) + "***",
+        });
+        return {
+          allowed: false,
+          remaining: error.response.data?.data?.remaining || 0,
+          limit: error.response.data?.data?.limit || 0,
+          resetIn: error.response.data?.data?.resetIn || 0,
+        };
+      }
+
       logger.error("Rate limiter service error", {
         apiKey: apiKey.substring(0, 8) + "***",
         error: error.message,
@@ -57,6 +70,12 @@ class RateLimiterClient {
       // If rate limiter is down, decide to fail-open or fail-closed
       // Fail-open: Allow the request (less secure but keeps service running)
       // Fail-closed: Block the request (more secure but can cause downtime)
+
+      // CRITICAL: Log this error prominently so the user knows why requests are allowed/blocked
+      logger.error("CRITICAL: Rate Limiter Service Unreachable", {
+        details: "Ensure rate-limiter-service is running on port 3002",
+        url: this.baseURL,
+      });
 
       if (config.env === "production") {
         // In production, fail-closed for security
@@ -71,10 +90,14 @@ class RateLimiterClient {
           error: "Rate limiter service unavailable",
         };
       } else {
-        // In development, fail-open for convenience
-        logger.warn("Rate limiter unavailable - ALLOWING request", {
-          apiKey: apiKey.substring(0, 8) + "***",
-        });
+        // In development, fail-open for convenience BUT warn heavily
+        logger.warn(
+          "DEV MODE: Rate limiter unavailable - ALLOWING request (Fail Open)",
+          {
+            apiKey: apiKey.substring(0, 8) + "***",
+            note: "Requests will NOT be limited until service is restored",
+          },
+        );
         return {
           allowed: true,
           remaining: 999,

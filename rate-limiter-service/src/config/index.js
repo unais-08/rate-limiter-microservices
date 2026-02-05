@@ -20,11 +20,11 @@ const config = {
   // Rate limiting defaults
   rateLimit: {
     // Default tokens per API key
-    defaultTokens: parseInt(process.env.DEFAULT_TOKENS) || 100,
+    defaultTokens: parseInt(process.env.DEFAULT_TOKENS) || 10,
     // Token refill rate (tokens per second)
-    refillRate: parseInt(process.env.REFILL_RATE) || 10,
+    refillRate: parseInt(process.env.REFILL_RATE) || 1,
     // Maximum burst capacity
-    maxBurst: parseInt(process.env.MAX_BURST) || 100,
+    maxBurst: parseInt(process.env.MAX_BURST) || 10,
   },
 };
 
