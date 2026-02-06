@@ -1,0 +1,42 @@
+{
+  "name": "usage-analytics-service",
+  "version": "1.0.0",
+  "description": "Usage Analytics Service - Collects and analyzes API usage metrics",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "cd /home/unais/Desktop/Ratelimiter/usage-analytics-service && node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "prisma:push": "prisma db push",
+    "postinstall": "prisma generate"
+  },
+  "keywords": [
+    "analytics",
+    "metrics",
+    "monitoring"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "pg": "^8.11.3",
+    "dotenv": "^16.3.1",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "morgan": "^1.10.0",
+    "@prisma/client": "^5.8.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "@types/node": "^20.10.6",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/morgan": "^1.9.9",
+    "tsx": "^4.7.0",
+    "prisma": "^5.8.0"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "ratelimiter-microservices",
+  "version": "1.0.0",
+  "description": "Rate Limiter System with API Gateway and Redis built with Microservices architecture",
+  "keywords": [
+    "rate-limiter",
+    "api-gateway",
+    "redis",
+    "microservices",
+    "nodejs"
+  ],
+  "author": "Shaikh",
+  "license": "MIT"
+}

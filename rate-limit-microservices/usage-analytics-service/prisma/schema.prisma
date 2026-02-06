@@ -1,0 +1,55 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model RequestLog {
+  id              Int       @id @default(autoincrement())
+  apiKey          String    @map("api_key") @db.VarChar(255)
+  endpoint        String    @db.VarChar(500)
+  method          String    @db.VarChar(10)
+  statusCode      Int       @map("status_code")
+  responseTimeMs  Int       @map("response_time_ms")
+  rateLimitHit    Boolean   @default(false) @map("rate_limit_hit")
+  timestamp       DateTime  @default(now())
+  
+  @@index([apiKey])
+  @@index([endpoint])
+  @@index([timestamp])
+  @@index([rateLimitHit])
+  @@map("request_logs")
+}
+
+model ApiKeyMetric {
+  id                  Int       @id @default(autoincrement())
+  apiKey              String    @unique @map("api_key") @db.VarChar(255)
+  totalRequests       Int       @default(0) @map("total_requests")
+  totalRateLimited    Int       @default(0) @map("total_rate_limited")
+  avgResponseTimeMs   Float     @default(0) @map("avg_response_time_ms")
+  lastRequestAt       DateTime? @map("last_request_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  
+  @@map("api_key_metrics")
+}
+
+model EndpointMetric {
+  id                  Int       @id @default(autoincrement())
+  endpoint            String    @db.VarChar(500)
+  method              String    @db.VarChar(10)
+  totalRequests       Int       @default(0) @map("total_requests")
+  avgResponseTimeMs   Float     @default(0) @map("avg_response_time_ms")
+  lastRequestAt       DateTime? @map("last_request_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+  
+  @@unique([endpoint, method])
+  @@map("endpoint_metrics")
+}

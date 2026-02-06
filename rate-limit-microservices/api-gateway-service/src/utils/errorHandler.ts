@@ -1,0 +1,77 @@
+import type {
+  ErrorHandler as ErrorHandlerType,
+  AsyncRouteHandler,
+  GatewayRequest,
+} from "../types/index.js";
+import type { Response, NextFunction } from "express";
+
+/**
+ * Custom application error class
+ */
+export class AppError extends Error {
+  readonly statusCode: number;
+  readonly isOperational: boolean;
+  readonly timestamp: string;
+
+  constructor(
+    message: string,
+    statusCode: number = 500,
+    isOperational: boolean = true,
+  ) {
+    super(message);
+    this.statusCode = statusCode;
+    this.isOperational = isOperational;
+    this.timestamp = new Date().toISOString();
+
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+/**
+ * Global error handler middleware
+ */
+export const errorHandler: ErrorHandlerType = (err, req, res, _next) => {
+  const statusCode = (err as AppError).statusCode || 500;
+  const message = err.message;
+  const isOperational = (err as AppError).isOperational ?? false;
+
+  // Log error details
+  const errorLog = {
+    message: err.message,
+    statusCode,
+    isOperational,
+    stack: err.stack,
+    url: req.originalUrl,
+    method: req.method,
+    apiKey: req.apiKey ? req.apiKey.substring(0, 8) + "***" : "none",
+  };
+
+  if (statusCode >= 500) {
+    console.error("Server Error:", JSON.stringify(errorLog));
+  } else {
+    console.warn("Client Error:", JSON.stringify(errorLog));
+  }
+
+  // Send error response
+  res.status(statusCode).json({
+    success: false,
+    error: {
+      message: isOperational ? message : "Internal Server Error",
+      statusCode,
+      timestamp: (err as AppError).timestamp,
+    },
+  });
+};
+
+/**
+ * Async handler wrapper to catch errors in async route handlers
+ */
+export const asyncHandler = (fn: AsyncRouteHandler): AsyncRouteHandler => {
+  return (
+    req: GatewayRequest,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    return Promise.resolve(fn(req, res, next)).catch(next);
+  };
+};
