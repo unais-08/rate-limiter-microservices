@@ -34,7 +34,7 @@ class Logger {
 
   constructor(serviceName: string, level: LogLevel = "info") {
     this.serviceName = serviceName;
-    this.level = LOG_LEVELS[level] || LOG_LEVELS.info;
+    this.level = LOG_LEVELS[level] || LOG_LEVELS.debug;
   }
 
   private _log(level: LogLevel, message: string, meta: LogMetadata = {}): void {

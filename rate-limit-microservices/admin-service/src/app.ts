@@ -1,10 +1,12 @@
-import express, { Request, Response, NextFunction, Express } from "express";
+import express, { Request, Response, Express } from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
-import apiKeyRoutes from "./routes/apiKeyRoutes.js";
-import monitoringRoutes from "./routes/monitoringRoutes.js";
+import apiKeyRoutes from "./routes/apiKey.routes.js";
+import monitoringRoutes from "./routes/monitoring.routes.js";
+import internalRoutes from "./routes/internal.route.js";
 import { authMiddleware, login } from "./middleware/auth.js";
+import { notFoundHandler, errorHandler } from "./middleware/errorHandler.js";
 import redisClient from "./config/redis.js";
 import prisma from "./config/database.js";
 import Logger from "./utils/logger.js";
@@ -41,29 +43,22 @@ const createApp = async (): Promise<Express> => {
       status: "healthy",
       service: "admin-service",
       timestamp: new Date().toISOString(),
+      PORT: process.env.PORT || 3004,
     });
   });
 
+  // Internal routes (no authentication) - for service-to-service calls
+  // Should be protected by network/IP restrictions in production
+  app.use("/api/v1/internal", internalRoutes);
   // Protected routes (require authentication)
   app.use("/api/v1/admin", authMiddleware, apiKeyRoutes);
   app.use("/api/v1/admin/monitoring", authMiddleware, monitoringRoutes);
 
   // 404 handler
-  app.use((_req: Request, res: Response) => {
-    res.status(404).json({
-      success: false,
-      error: "Route not found",
-    });
-  });
+  app.use(notFoundHandler);
 
   // Error handler
-  app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-    logger.error("Unhandled error", { error: err.message, stack: err.stack });
-    res.status(500).json({
-      success: false,
-      error: "Internal server error",
-    });
-  });
+  app.use(errorHandler);
 
   return app;
 };

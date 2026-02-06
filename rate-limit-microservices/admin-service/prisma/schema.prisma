@@ -19,7 +19,7 @@ model ApiKey {
   
   // Rate limit configuration
   tokensPerWindow Int       @default(100) @map("tokens_per_window")
-  refillRate      Int       @default(10) @map("refill_rate")
+  refillRate      Float     @default(0.2) @map("refill_rate")
   maxBurst        Int       @default(100) @map("max_burst")
   
   // Status

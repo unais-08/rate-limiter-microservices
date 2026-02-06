@@ -33,7 +33,7 @@ class ApiKeyService {
       userId = null,
       tier = "free",
       tokensPerWindow = 100,
-      refillRate = 10,
+      refillRate = 0.2,
       maxBurst = 100,
       enabled = true,
       description = null,

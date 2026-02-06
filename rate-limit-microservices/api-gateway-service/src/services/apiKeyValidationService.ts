@@ -15,7 +15,7 @@ class ApiKeyValidationService {
   private readonly NEGATIVE_CACHE_TTL = 300; // 5 minutes for invalid keys
   private readonly POSITIVE_CACHE_TTL = 900; // 15 minutes for valid keys
   private readonly ADMIN_SERVICE_URL =
-    process.env.ADMIN_SERVICE_URL || "http://localhost:3001";
+    process.env.ADMIN_SERVICE_URL || "http://localhost:3004";
 
   /**
    * Validate API key with Redis cache + PostgreSQL fallback
@@ -122,7 +122,7 @@ class ApiKeyValidationService {
   ): Promise<{ valid: boolean; metadata: any }> {
     try {
       const response = await axios.post(
-        `${this.ADMIN_SERVICE_URL}/api/v1/admin/keys/${apiKey}/validate`,
+        `${this.ADMIN_SERVICE_URL}/api/v1/internal/validate/${apiKey}`,
         {},
         {
           timeout: 5000, // 5 second timeout
@@ -131,7 +131,10 @@ class ApiKeyValidationService {
           },
         },
       );
-
+      logger.debug("Admin Service validation response received", {
+        apiKey: apiKey.substring(0, 8) + "***",
+        status: response.status,
+      });
       if (response.data.success && response.data.valid) {
         return {
           valid: true,

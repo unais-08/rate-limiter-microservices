@@ -9,6 +9,7 @@ import morgan from "morgan";
 import config from "./config/rateLimit.config.js";
 import Logger from "./utils/logger.js";
 import { errorHandler } from "./utils/errorHandler.js";
+import { notFoundHandler } from "./middleware/errorHandler.js";
 import redisClient from "./utils/redisClient.js";
 import apiRoutes from "./routes/index.js";
 
@@ -64,16 +65,7 @@ const createApp = async (): Promise<Application> => {
   app.use("/api", apiRoutes);
 
   // 404 handler
-  app.use((req: Request, res: Response) => {
-    res.status(404).json({
-      success: false,
-      error: {
-        message: "Resource not found",
-        statusCode: 404,
-        path: req.originalUrl,
-      },
-    });
-  });
+  app.use(notFoundHandler);
 
   // Global error handler (must be last)
   app.use(errorHandler);

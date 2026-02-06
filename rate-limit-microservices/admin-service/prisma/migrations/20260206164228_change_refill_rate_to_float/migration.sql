@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "api_keys" ALTER COLUMN "refill_rate" SET DEFAULT 0.2,
+ALTER COLUMN "refill_rate" SET DATA TYPE DOUBLE PRECISION;

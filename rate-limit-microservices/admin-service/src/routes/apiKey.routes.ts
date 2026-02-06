@@ -22,15 +22,6 @@ router.get("/keys", apiKeyController.listApiKeys.bind(apiKeyController));
 router.get("/keys/stats", apiKeyController.getStats.bind(apiKeyController));
 
 /**
- * POST /api/admin/keys/:apiKey/validate
- * Validate API key (called by API Gateway on cache miss)
- */
-router.post(
-  "/keys/:apiKey/validate",
-  apiKeyController.validateApiKey.bind(apiKeyController),
-);
-
-/**
  * GET /api/admin/keys/:apiKey
  * Get specific API key details
  */
