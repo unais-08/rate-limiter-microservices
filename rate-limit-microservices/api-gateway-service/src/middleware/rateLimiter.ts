@@ -1,7 +1,11 @@
 import rateLimiterClient from "../services/rateLimiterClient.js";
+import analyticsClient from "../services/analyticsClient.js";
 import config from "../config/gatewayService.config.js";
 import Logger from "../utils/logger.js";
-import type { AsyncRouteHandler } from "../types/index.js";
+import type {
+  AsyncRouteHandler,
+  AnalyticsRequestData,
+} from "../types/index.js";
 
 const logger = new Logger(config.serviceName, config.logLevel);
 
@@ -52,6 +56,22 @@ export const rateLimitMiddleware: AsyncRouteHandler = async (
         path: req.path,
         method: req.method,
         resetIn: result.resetIn,
+      });
+
+      // Log to analytics BEFORE sending response
+      const responseTimeMs = Date.now() - (req.startTime || Date.now());
+      const analyticsData: AnalyticsRequestData = {
+        apiKey: apiKey,
+        endpoint: req.originalUrl || req.url,
+        method: req.method,
+        statusCode: 429,
+        responseTimeMs,
+        rateLimitHit: true,
+      };
+
+      // Send to analytics (async, don't wait)
+      analyticsClient.logRequest(analyticsData).catch(() => {
+        // Silently fail - analytics shouldn't block response
       });
 
       res.status(429).json({
