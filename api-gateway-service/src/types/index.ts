@@ -102,13 +102,20 @@ export interface ApiKeyVerification {
   readonly userId: string;
   readonly tier: string;
   readonly permissions: readonly string[];
+  readonly metadata?: {
+    readonly name: string;
+    readonly tokensPerWindow: number;
+    readonly refillRate: number;
+    readonly maxBurst: number;
+  };
 }
 
 /**
- * Express Request with apiKey
+ * Express Request with apiKey and metadata
  */
 export interface GatewayRequest extends Request {
   apiKey?: string;
+  apiKeyMetadata?: ApiKeyVerification;
   startTime?: number;
 }
 

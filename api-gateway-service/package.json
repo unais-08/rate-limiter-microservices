@@ -24,6 +24,7 @@
     "cors": "^2.8.5",
     "helmet": "^7.1.0",
     "morgan": "^1.10.0",
+    "redis": "^4.6.7",
     "http-proxy-middleware": "^2.0.6"
   },
   "devDependencies": {

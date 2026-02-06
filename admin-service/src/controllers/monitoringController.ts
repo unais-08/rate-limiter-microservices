@@ -1,10 +1,11 @@
+import { Request, Response } from "express";
 import monitoringService from "../services/monitoringService.js";
 
 class MonitoringController {
   /**
    * Get health of all services
    */
-  async getServicesHealth(req, res) {
+  async getServicesHealth(_req: Request, res: Response): Promise<void> {
     try {
       const health = await monitoringService.checkAllServicesHealth();
 
@@ -24,7 +25,7 @@ class MonitoringController {
   /**
    * Get system metrics
    */
-  async getSystemMetrics(req, res) {
+  async getSystemMetrics(_req: Request, res: Response): Promise<void> {
     try {
       const metrics = await monitoringService.getSystemMetrics();
 
@@ -44,7 +45,7 @@ class MonitoringController {
   /**
    * Get dashboard data
    */
-  async getDashboard(req, res) {
+  async getDashboard(_req: Request, res: Response): Promise<void> {
     try {
       const dashboard = await monitoringService.getDashboardData();
 
@@ -64,13 +65,13 @@ class MonitoringController {
   /**
    * Get time-series data
    */
-  async getTimeSeries(req, res) {
+  async getTimeSeries(req: Request, res: Response): Promise<void> {
     try {
-      const { hours = 24, interval = "hour" } = req.query;
+      const { hours = "24", interval = "hour" } = req.query;
 
       const data = await monitoringService.getTimeSeriesData(
-        parseInt(hours),
-        interval,
+        parseInt(hours as string, 10),
+        interval as string,
       );
 
       res.json({
@@ -89,7 +90,7 @@ class MonitoringController {
   /**
    * Get endpoint analytics
    */
-  async getEndpointAnalytics(req, res) {
+  async getEndpointAnalytics(_req: Request, res: Response): Promise<void> {
     try {
       const data = await monitoringService.getEndpointAnalytics();
 
@@ -109,12 +110,12 @@ class MonitoringController {
   /**
    * Get top rate-limited keys
    */
-  async getTopRateLimited(req, res) {
+  async getTopRateLimited(req: Request, res: Response): Promise<void> {
     try {
-      const { limit = 10 } = req.query;
+      const { limit = "10" } = req.query;
 
       const data = await monitoringService.getTopRateLimitedKeys(
-        parseInt(limit),
+        parseInt(limit as string, 10),
       );
 
       res.json({

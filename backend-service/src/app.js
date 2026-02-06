@@ -29,6 +29,12 @@ const createApp = () => {
   } else {
     app.use(morgan("combined"));
   }
+  app.use((req, res, next) => {
+    req.on("aborted", () => {
+      console.error("❌ Request aborted by client:", req.method, req.url);
+    });
+    next();
+  });
 
   // Health check endpoint
   app.get("/health", (req, res) => {

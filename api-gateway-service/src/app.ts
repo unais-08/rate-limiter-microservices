@@ -9,12 +9,28 @@ import morgan from "morgan";
 import config from "./config/gatewayService.config.js";
 import { errorHandler } from "./utils/errorHandler.js";
 import routes from "./routes/index.js";
+import redisClient from "./utils/redisClient.js";
+import Logger from "./utils/logger.js";
+
+const logger = new Logger(config.serviceName, config.logLevel);
 
 /**
  * Initialize Express application
  */
-const createApp = (): Application => {
+const createApp = async (): Promise<Application> => {
   const app: Application = express();
+
+  // Connect to Redis for API key validation
+  try {
+    await redisClient.connect();
+    logger.info("Redis connected successfully for API key validation");
+  } catch (error) {
+    logger.error("Failed to connect to Redis", {
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+    logger.warn("API key validation will fail without Redis connection");
+    // Don't throw - let the app start but warn that validation won't work
+  }
 
   // Security middleware
   app.use(helmet());
@@ -36,12 +52,15 @@ const createApp = (): Application => {
 
   // Health check endpoint (no auth required)
   app.get("/health", (_req: Request, res: Response) => {
+    const redisStatus = redisClient.isReady() ? "connected" : "disconnected";
+
     res.status(200).json({
       success: true,
       service: config.serviceName,
       status: "healthy",
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
+      redis: redisStatus,
       services: {
         rateLimiter: config.rateLimiterService.url,
         backend: config.backendService.url,

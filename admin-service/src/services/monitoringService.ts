@@ -1,11 +1,28 @@
 import axios from "axios";
 import config from "../config/index.js";
 
+interface ServiceHealth {
+  name: string;
+  port: number;
+  status: "healthy" | "unhealthy";
+  responseTime?: string;
+  data?: any;
+  error?: string;
+}
+
+interface DashboardData {
+  services: ServiceHealth[];
+  metrics: any;
+  topRateLimited: any[];
+  timeSeries: any[];
+  timestamp: string;
+}
+
 class MonitoringService {
   /**
    * Check health of all services
    */
-  async checkAllServicesHealth() {
+  async checkAllServicesHealth(): Promise<ServiceHealth[]> {
     const services = [
       {
         name: "Rate Limiter",
@@ -23,7 +40,7 @@ class MonitoringService {
           return {
             name: service.name,
             port: service.port,
-            status: "healthy",
+            status: "healthy" as const,
             responseTime: response.headers["x-response-time"] || "N/A",
             data: response.data,
           };
@@ -31,20 +48,22 @@ class MonitoringService {
           return {
             name: service.name,
             port: service.port,
-            status: "unhealthy",
-            error: error.message,
+            status: "unhealthy" as const,
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
       }),
     );
 
-    return results.map((result) => result.value || result.reason);
+    return results.map((result) =>
+      result.status === "fulfilled" ? result.value : result.reason,
+    );
   }
 
   /**
    * Get system-wide metrics from analytics
    */
-  async getSystemMetrics() {
+  async getSystemMetrics(): Promise<any> {
     try {
       const response = await axios.get(
         `${config.analyticsUrl}/api/v1/analytics/system-stats`,
@@ -54,7 +73,10 @@ class MonitoringService {
       );
       return response.data.data;
     } catch (error) {
-      console.error("Failed to fetch system metrics:", error.message);
+      console.error(
+        "Failed to fetch system metrics:",
+        error instanceof Error ? error.message : error,
+      );
       return null;
     }
   }
@@ -62,7 +84,7 @@ class MonitoringService {
   /**
    * Get top rate-limited API keys
    */
-  async getTopRateLimitedKeys(limit = 10) {
+  async getTopRateLimitedKeys(limit: number = 10): Promise<any[]> {
     try {
       const response = await axios.get(
         `${config.analyticsUrl}/api/v1/analytics/top-rate-limited?limit=${limit}`,
@@ -70,7 +92,10 @@ class MonitoringService {
       );
       return response.data.data;
     } catch (error) {
-      console.error("Failed to fetch top rate-limited keys:", error.message);
+      console.error(
+        "Failed to fetch top rate-limited keys:",
+        error instanceof Error ? error.message : error,
+      );
       return [];
     }
   }
@@ -78,7 +103,10 @@ class MonitoringService {
   /**
    * Get time-series data
    */
-  async getTimeSeriesData(hours = 24, interval = "hour") {
+  async getTimeSeriesData(
+    hours: number = 24,
+    interval: string = "hour",
+  ): Promise<any[]> {
     try {
       const response = await axios.get(
         `${config.analyticsUrl}/api/v1/analytics/time-series?hours=${hours}&interval=${interval}`,
@@ -86,7 +114,10 @@ class MonitoringService {
       );
       return response.data.data;
     } catch (error) {
-      console.error("Failed to fetch time-series data:", error.message);
+      console.error(
+        "Failed to fetch time-series data:",
+        error instanceof Error ? error.message : error,
+      );
       return [];
     }
   }
@@ -94,7 +125,7 @@ class MonitoringService {
   /**
    * Get all endpoint analytics
    */
-  async getEndpointAnalytics() {
+  async getEndpointAnalytics(): Promise<any[]> {
     try {
       const response = await axios.get(
         `${config.analyticsUrl}/api/v1/analytics/endpoints`,
@@ -104,7 +135,10 @@ class MonitoringService {
       );
       return response.data.data;
     } catch (error) {
-      console.error("Failed to fetch endpoint analytics:", error.message);
+      console.error(
+        "Failed to fetch endpoint analytics:",
+        error instanceof Error ? error.message : error,
+      );
       return [];
     }
   }
@@ -112,7 +146,7 @@ class MonitoringService {
   /**
    * Get comprehensive dashboard data
    */
-  async getDashboardData() {
+  async getDashboardData(): Promise<DashboardData> {
     const [servicesHealth, systemMetrics, topRateLimited, timeSeries] =
       await Promise.all([
         this.checkAllServicesHealth(),

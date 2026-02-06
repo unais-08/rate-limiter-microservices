@@ -2,6 +2,7 @@ import { type Server } from "http";
 import createApp from "./app.js";
 import config from "./config/gatewayService.config.js";
 import Logger from "./utils/logger.js";
+import redisClient from "./utils/redisClient.js";
 
 const logger = new Logger(config.serviceName, config.logLevel);
 
@@ -10,7 +11,7 @@ const logger = new Logger(config.serviceName, config.logLevel);
  */
 const startServer = async (): Promise<void> => {
   try {
-    const app = createApp();
+    const app = await createApp();
 
     const server: Server = app.listen(config.port, () => {
       logger.info(`${config.serviceName} started successfully`, {
@@ -31,8 +32,12 @@ const startServer = async (): Promise<void> => {
     const shutdown = async (signal: string): Promise<void> => {
       logger.info(`${signal} received, starting graceful shutdown`);
 
-      server.close(() => {
+      server.close(async () => {
         logger.info("HTTP server closed");
+
+        // Disconnect from Redis
+        await redisClient.disconnect();
+
         process.exit(0);
       });
 

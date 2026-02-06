@@ -1,29 +1,49 @@
+import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 import config from "../config/index.js";
+
+interface JwtPayload {
+  username: string;
+  role: string;
+}
+
+// Extend Express Request type
+declare global {
+  namespace Express {
+    interface Request {
+      user?: JwtPayload;
+    }
+  }
+}
 
 /**
  * Simple authentication middleware
  * In production, use proper JWT with database-backed users
  */
-export const authMiddleware = (req, res, next) => {
+export const authMiddleware = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void => {
   try {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: "No authorization token provided",
       });
+      return;
     }
 
     const token = authHeader.substring(7);
 
     try {
-      const decoded = jwt.verify(token, config.jwtSecret);
+      const decoded = jwt.verify(token, config.jwtSecret) as JwtPayload;
       req.user = decoded;
       next();
-    } catch (err) {
-      return res.status(401).json({
+    } catch (_err) {
+      res.status(401).json({
         success: false,
         error: "Invalid or expired token",
       });
@@ -40,7 +60,7 @@ export const authMiddleware = (req, res, next) => {
 /**
  * Login endpoint (not middleware, but related)
  */
-export const login = (req, res) => {
+export const login = (req: Request, res: Response): void => {
   try {
     const { username, password } = req.body;
 
@@ -53,14 +73,15 @@ export const login = (req, res) => {
         expiresIn: "24h",
       });
 
-      return res.json({
+      res.json({
         success: true,
         token,
         expiresIn: "24h",
       });
+      return;
     }
 
-    return res.status(401).json({
+    res.status(401).json({
       success: false,
       error: "Invalid credentials",
     });

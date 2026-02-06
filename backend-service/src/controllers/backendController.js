@@ -70,7 +70,8 @@ export const createResource = asyncHandler(async (req, res) => {
     throw new AppError("Resource name is required", 400);
   }
 
-  const result = await backendService.createResource(resourceData);
+  // const result = await backendService.createResource(resourceData);
+  const result = "simulated resource creation result";
 
   res.status(201).json({
     success: true,

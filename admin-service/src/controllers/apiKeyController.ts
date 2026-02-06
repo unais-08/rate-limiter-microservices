@@ -1,19 +1,30 @@
+import { Request, Response } from "express";
 import apiKeyService from "../services/apiKeyService.js";
 
 class ApiKeyController {
   /**
    * Create a new API key
    */
-  async createApiKey(req, res) {
+  async createApiKey(req: Request, res: Response): Promise<void> {
     try {
-      const { name, tier, tokensPerWindow, refillRate, maxBurst } = req.body;
-
-      const result = await apiKeyService.createApiKey({
+      const {
         name,
+        userId,
         tier,
         tokensPerWindow,
         refillRate,
         maxBurst,
+        description,
+      } = req.body;
+
+      const result = await apiKeyService.createApiKey({
+        name,
+        userId,
+        tier,
+        tokensPerWindow,
+        refillRate,
+        maxBurst,
+        description,
       });
 
       res.status(201).json({
@@ -32,7 +43,7 @@ class ApiKeyController {
   /**
    * List all API keys
    */
-  async listApiKeys(req, res) {
+  async listApiKeys(_req: Request, res: Response): Promise<void> {
     try {
       const keys = await apiKeyService.listApiKeys();
 
@@ -53,17 +64,18 @@ class ApiKeyController {
   /**
    * Get specific API key details
    */
-  async getApiKey(req, res) {
+  async getApiKey(req: Request, res: Response): Promise<void> {
     try {
       const { apiKey } = req.params;
 
       const result = await apiKeyService.getApiKey(apiKey);
 
       if (!result) {
-        return res.status(404).json({
+        res.status(404).json({
           success: false,
           error: "API key not found",
         });
+        return;
       }
 
       res.json({
@@ -82,7 +94,7 @@ class ApiKeyController {
   /**
    * Update API key configuration
    */
-  async updateApiKey(req, res) {
+  async updateApiKey(req: Request, res: Response): Promise<void> {
     try {
       const { apiKey } = req.params;
       const updates = req.body;
@@ -96,11 +108,12 @@ class ApiKeyController {
     } catch (error) {
       console.error("Error updating API key:", error);
 
-      if (error.message === "API key not found") {
-        return res.status(404).json({
+      if (error instanceof Error && error.message === "API key not found") {
+        res.status(404).json({
           success: false,
           error: error.message,
         });
+        return;
       }
 
       res.status(500).json({
@@ -113,7 +126,7 @@ class ApiKeyController {
   /**
    * Delete/revoke API key
    */
-  async deleteApiKey(req, res) {
+  async deleteApiKey(req: Request, res: Response): Promise<void> {
     try {
       const { apiKey } = req.params;
 
@@ -126,11 +139,12 @@ class ApiKeyController {
     } catch (error) {
       console.error("Error deleting API key:", error);
 
-      if (error.message === "API key not found") {
-        return res.status(404).json({
+      if (error instanceof Error && error.message === "API key not found") {
+        res.status(404).json({
           success: false,
           error: error.message,
         });
+        return;
       }
 
       res.status(500).json({
@@ -143,7 +157,7 @@ class ApiKeyController {
   /**
    * Reset tokens for API key
    */
-  async resetTokens(req, res) {
+  async resetTokens(req: Request, res: Response): Promise<void> {
     try {
       const { apiKey } = req.params;
 
@@ -156,11 +170,12 @@ class ApiKeyController {
     } catch (error) {
       console.error("Error resetting tokens:", error);
 
-      if (error.message === "API key not found") {
-        return res.status(404).json({
+      if (error instanceof Error && error.message === "API key not found") {
+        res.status(404).json({
           success: false,
           error: error.message,
         });
+        return;
       }
 
       res.status(500).json({
@@ -173,7 +188,7 @@ class ApiKeyController {
   /**
    * Get API key statistics
    */
-  async getStats(req, res) {
+  async getStats(_req: Request, res: Response): Promise<void> {
     try {
       const stats = await apiKeyService.getApiKeyStats();
 
@@ -186,6 +201,39 @@ class ApiKeyController {
       res.status(500).json({
         success: false,
         error: "Failed to get statistics",
+      });
+    }
+  }
+
+  /**
+   * Validate API key - called by API Gateway on cache miss
+   */
+  async validateApiKey(req: Request, res: Response): Promise<void> {
+    try {
+      const { apiKey } = req.params;
+
+      const result = await apiKeyService.validateApiKey(apiKey);
+
+      if (!result.valid) {
+        res.status(404).json({
+          success: false,
+          valid: false,
+          error: "API key not found",
+        });
+        return;
+      }
+
+      res.json({
+        success: true,
+        valid: result.valid,
+        metadata: result.metadata,
+      });
+    } catch (error) {
+      console.error("Error validating API key:", error);
+      res.status(500).json({
+        success: false,
+        valid: false,
+        error: "Validation failed",
       });
     }
   }

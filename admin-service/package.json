@@ -2,25 +2,46 @@
   "name": "admin-service",
   "version": "1.0.0",
   "description": "Admin Service - Management dashboard for the rate limiter platform",
-  "main": "src/server.js",
+  "main": "dist/server.js",
   "type": "module",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsx watch src/server.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "prisma:push": "prisma db push",
+    "postinstall": "prisma generate"
   },
-  "keywords": ["admin", "management", "dashboard"],
+  "keywords": [
+    "admin",
+    "management",
+    "dashboard"
+  ],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.18.2",
     "axios": "^1.6.2",
-    "redis": "^4.6.7",
-    "pg": "^8.11.3",
-    "dotenv": "^16.3.1",
-    "cors": "^2.8.5",
-    "helmet": "^7.1.0",
-    "morgan": "^1.10.0",
     "bcrypt": "^5.1.1",
-    "jsonwebtoken": "^9.0.2"
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "pg": "^8.11.3",
+    "redis": "^4.6.7",
+    "@prisma/client": "^5.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.2.1",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/morgan": "^1.9.9",
+    "@types/jsonwebtoken": "^9.0.5",
+    "typescript": "^5.3.3",
+    "tsx": "^4.7.0",
+    "prisma": "^5.8.0"
   }
 }

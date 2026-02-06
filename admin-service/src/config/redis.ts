@@ -1,14 +1,12 @@
-import { createClient } from "redis";
-import config from "../config/index.js";
+import { createClient, RedisClientType } from "redis";
+import config from "./index.js";
 
 class RedisClient {
-  constructor() {
-    this.client = null;
-    this.isConnected = false;
-  }
+  private client: RedisClientType | null = null;
+  private isConnected: boolean = false;
 
-  async connect() {
-    if (this.isConnected) {
+  async connect(): Promise<RedisClientType> {
+    if (this.isConnected && this.client) {
       return this.client;
     }
 
@@ -33,12 +31,15 @@ class RedisClient {
       await this.client.connect();
       return this.client;
     } catch (error) {
-      console.error("❌ Failed to connect to Redis:", error.message);
+      console.error(
+        "❌ Failed to connect to Redis:",
+        error instanceof Error ? error.message : error,
+      );
       throw error;
     }
   }
 
-  async disconnect() {
+  async disconnect(): Promise<void> {
     if (this.client && this.isConnected) {
       await this.client.quit();
       this.isConnected = false;
@@ -46,11 +47,15 @@ class RedisClient {
     }
   }
 
-  getClient() {
+  getClient(): RedisClientType {
     if (!this.isConnected || !this.client) {
-      throw new Error("Redis client not connected");
+      throw new Error("Redis client is not connected. Call connect() first.");
     }
     return this.client;
+  }
+
+  isClientConnected(): boolean {
+    return this.isConnected;
   }
 }
 
