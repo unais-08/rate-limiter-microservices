@@ -27,9 +27,11 @@ const LEVEL_COLORS = {
 };
 
 class Logger {
-  constructor(serviceName, level = "info") {
+  constructor(serviceName, level) {
     this.serviceName = serviceName;
-    this.level = LOG_LEVELS[level] || LOG_LEVELS.info;
+    // Read from environment variable, fallback to provided level, then default to debug
+    const envLevel = process.env.LOG_LEVEL || level || "debug";
+    this.level = LOG_LEVELS[envLevel] || LOG_LEVELS.debug;
   }
 
   _log(level, message, meta = {}) {

@@ -1,0 +1,46 @@
+{
+  "name": "api-rate-limiter-microservices",
+  "version": "1.0.0",
+  "description": "Microservices-based API Rate Limiter with Token Bucket Algorithm",
+  "author": "unais-08",
+  "license": "MIT",
+  "private": true,
+  "workspaces": [
+    "backend-service",
+    "frontend",
+    "rate-limit-microservices/admin-service",
+    "rate-limit-microservices/api-gateway-service",
+    "rate-limit-microservices/rate-limiter-service",
+    "rate-limit-microservices/usage-analytics-service"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"ADMIN,GATEWAY,RATELIMIT,ANALYTICS,BACKEND,FRONTEND\" -c \"bgBlue,bgMagenta,bgCyan,bgGreen,bgYellow,bgRed\" \"npm run dev:admin\" \"npm run dev:gateway\" \"npm run dev:ratelimiter\" \"npm run dev:analytics\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:admin": "cd rate-limit-microservices/admin-service && npm run dev",
+    "dev:gateway": "cd rate-limit-microservices/api-gateway-service && npm run dev",
+    "dev:ratelimiter": "cd rate-limit-microservices/rate-limiter-service && npm run dev",
+    "dev:analytics": "cd rate-limit-microservices/usage-analytics-service && npm run dev",
+    "dev:backend": "cd backend-service && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "install:all": "npm install && cd rate-limit-microservices/admin-service && npm install && cd ../api-gateway-service && npm install && cd ../rate-limiter-service && npm install && cd ../usage-analytics-service && npm install && cd ../../backend-service && npm install && cd ../frontend && npm install",
+    "build:all": "npm run build:admin && npm run build:gateway && npm run build:ratelimiter && npm run build:analytics && npm run build:backend && npm run build:frontend",
+    "build:admin": "cd rate-limit-microservices/admin-service && npm run build",
+    "build:gateway": "cd rate-limit-microservices/api-gateway-service && npm run build",
+    "build:ratelimiter": "cd rate-limit-microservices/rate-limiter-service && npm run build",
+    "build:analytics": "cd rate-limit-microservices/usage-analytics-service && npm run build",
+    "build:backend": "cd backend-service && npm run build",
+    "build:frontend": "cd frontend && npm run build",
+    "clean": "rm -rf node_modules */node_modules */*/node_modules",
+    "lint": "echo 'Run linting in individual services'",
+    "test": "echo 'Run tests in individual services'",
+    "prisma:studio": "concurrently -n \"ADMIN-DB,ANALYTICS-DB\" -c \"bgBlue,bgGreen\" \"cd rate-limit-microservices/admin-service && npx prisma studio --port 5555\" \"cd rate-limit-microservices/usage-analytics-service && npx prisma studio --port 5556\"",
+    "prisma:studio:admin": "cd rate-limit-microservices/admin-service && npx prisma studio --port 5555",
+    "prisma:studio:analytics": "cd rate-limit-microservices/usage-analytics-service && npx prisma studio --port 5556"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

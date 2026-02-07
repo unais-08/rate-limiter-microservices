@@ -64,13 +64,15 @@ export const listResources = asyncHandler(async (req, res) => {
  * Create a new resource
  */
 export const createResource = asyncHandler(async (req, res) => {
-  const resourceData = req.body;
+  const { name } = req.body;
 
-  if (!resourceData.name) {
+  console.log("Received createResource request with name:", name);
+
+  if (!name) {
     throw new AppError("Resource name is required", 400);
   }
 
-  // const result = await backendService.createResource(resourceData);
+  // const result = await backendService.createResource({ name });
   const result = "simulated resource creation result";
 
   res.status(201).json({

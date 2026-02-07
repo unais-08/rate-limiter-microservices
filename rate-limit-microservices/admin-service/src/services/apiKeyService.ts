@@ -9,6 +9,7 @@ import type {
   ValidationResult,
   ApiKeyStats,
 } from "../types/index.js";
+import config from "../config/index.js";
 
 const logger = new Logger("admin-service:apiKeyService");
 
@@ -32,9 +33,9 @@ class ApiKeyService {
       name = "Unnamed Key",
       userId = null,
       tier = "free",
-      tokensPerWindow = 100,
-      refillRate = 0.2,
-      maxBurst = 100,
+      tokensPerWindow = config.defaultTokens,
+      refillRate = config.refillRate,
+      maxBurst = config.maxBurst,
       enabled = true,
       description = null,
       allowedIps = [],

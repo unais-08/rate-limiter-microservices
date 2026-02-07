@@ -25,6 +25,9 @@ class BackendProxy {
     this.client = axios.create({
       baseURL: this.baseURL,
       timeout: this.timeout,
+      maxContentLength: Infinity,
+      maxBodyLength: Infinity,
+      validateStatus: () => true, // Accept all status codes
     });
   }
 
@@ -40,6 +43,9 @@ class BackendProxy {
       logger.debug("Forwarding request to backend", {
         method,
         path,
+        fullUrl: `${this.baseURL}${path}`,
+        body: body,
+        headers: headers,
         apiKey: req.apiKey?.substring(0, 8) + "***",
       });
 
@@ -49,6 +55,7 @@ class BackendProxy {
         params: query,
         data: body,
         headers,
+        validateStatus: () => true, // Don't throw on any status code
       });
 
       logger.info("Request proxied to backend successfully", {
@@ -67,9 +74,16 @@ class BackendProxy {
       logger.error("Request proxied to backend failed", {
         method: req.method,
         path: req.path,
+        baseURL: this.baseURL,
         apiKey: req.apiKey?.substring(0, 8) + "***",
         error: error instanceof Error ? error.message : "Unknown error",
-        status: axios.isAxiosError(error) ? error.response?.status : undefined,
+        errorDetails: axios.isAxiosError(error)
+          ? {
+              code: error.code,
+              status: error.response?.status,
+              statusText: error.response?.statusText,
+            }
+          : undefined,
       });
 
       // Return error response from backend or construct one
@@ -120,6 +134,13 @@ class BackendProxy {
       req.apiKey?.substring(0, 8) + "***" || "none";
     headers["X-Original-IP"] = req.ip || "unknown";
 
+    // Ensure Content-Type is set for POST/PUT/PATCH requests
+    if (["POST", "PUT", "PATCH"].includes(req.method) && body) {
+      if (!headers["content-type"]) {
+        headers["content-type"] = "application/json";
+      }
+    }
+
     return {
       method: req.method,
       path,
@@ -147,6 +168,7 @@ class BackendProxy {
       "transfer-encoding",
       "upgrade",
       "host", // Will be set by axios
+      "content-length", // Let axios calculate this
     ];
 
     const filtered: Record<string, string> = {};

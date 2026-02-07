@@ -33,9 +33,11 @@ class Logger {
   private readonly serviceName: string;
   private readonly level: number;
 
-  constructor(serviceName: string, level: LogLevel = "info") {
+  constructor(serviceName: string, level?: LogLevel) {
     this.serviceName = serviceName;
-    this.level = LOG_LEVELS[level] || LOG_LEVELS.info;
+    // Read from environment variable, fallback to provided level, then default to debug
+    const envLevel = (process.env.LOG_LEVEL as LogLevel) || level || "debug";
+    this.level = LOG_LEVELS[envLevel] || LOG_LEVELS.debug;
   }
 
   private _log(level: LogLevel, message: string, meta: LogMetadata = {}): void {

@@ -6,6 +6,9 @@ interface Config {
   port: number;
   nodeEnv: string;
   adminUsername: string;
+  defaultTokens: number;
+  refillRate: number;
+  maxBurst: number;
   adminPassword: string;
   jwtSecret: string;
   rateLimiterUrl: string;
@@ -29,6 +32,11 @@ interface Config {
 const config: Config = {
   port: parseInt(process.env.PORT || "3004", 10),
   nodeEnv: process.env.NODE_ENV || "development",
+
+  // Rate Limiting Defaults
+  defaultTokens: parseInt(process.env.DEFAULT_TOKENS || "2", 10),
+  refillRate: parseFloat(process.env.REFILL_RATE || "0.2"),
+  maxBurst: parseInt(process.env.MAX_BURST || "2", 10),
 
   // Admin Auth
   adminUsername: process.env.ADMIN_USERNAME || "admin",

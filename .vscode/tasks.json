@@ -1,0 +1,218 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "🚀 Start All Services",
+      "dependsOn": [
+        "Start Admin Service",
+        "Start API Gateway",
+        "Start Rate Limiter",
+        "Start Analytics Service",
+        "Start Backend Service",
+        "Start Frontend"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "Start Admin Service",
+      "type": "shell",
+      "command": "source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true && npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/rate-limit-microservices/admin-service",
+        "shell": {
+          "executable": "/bin/zsh",
+          "args": ["-i", "-c"]
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "admin"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^([^\\\\s].*):(\\\\d+):(\\\\d+):\\\\s+(warning|error):\\\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*Starting.*",
+          "endsPattern": ".*(started|listening|ready).*"
+        }
+      },
+      "runOptions": {
+        "runOn": "folderOpen"
+      }
+    },
+    {
+      "label": "Start API Gateway",
+      "type": "shell",
+      "command": "source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true && npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/rate-limit-microservices/api-gateway-service",
+        "shell": {
+          "executable": "/bin/zsh",
+          "args": ["-i", "-c"]
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "gateway"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^([^\\\\s].*):(\\\\d+):(\\\\d+):\\\\s+(warning|error):\\\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*Starting.*",
+          "endsPattern": ".*(started|listening|ready).*"
+        }
+      }
+    },
+    {
+      "label": "Start Rate Limiter",
+      "type": "shell",
+      "command": "source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true && npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/rate-limit-microservices/rate-limiter-service",
+        "shell": {
+          "executable": "/bin/zsh",
+          "args": ["-i", "-c"]
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "ratelimiter"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^([^\\\\s].*):(\\\\d+):(\\\\d+):\\\\s+(warning|error):\\\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*Starting.*",
+          "endsPattern": ".*(started|listening|ready).*"
+        }
+      }
+    },
+    {
+      "label": "Start Analytics Service",
+      "type": "shell",
+      "command": "source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true && npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/rate-limit-microservices/usage-analytics-service",
+        "shell": {
+          "executable": "/bin/zsh",
+          "args": ["-i", "-c"]
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "analytics"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^([^\\\\s].*):(\\\\d+):(\\\\d+):\\\\s+(warning|error):\\\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*Starting.*",
+          "endsPattern": ".*(started|listening|ready).*"
+        }
+      }
+    },
+    {
+      "label": "Start Backend Service",
+      "type": "shell",
+      "command": "source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true && npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/backend-service",
+        "shell": {
+          "executable": "/bin/zsh",
+          "args": ["-i", "-c"]
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "backend"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^([^\\\\s].*):(\\\\d+):(\\\\d+):\\\\s+(warning|error):\\\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*Starting.*",
+          "endsPattern": ".*(started|listening|ready).*"
+        }
+      }
+    },
+    {
+      "label": "Start Frontend",
+      "type": "shell",
+      "command": "source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true && npm run dev",
+      "options": {
+        "cwd": "${workspaceFolder}/frontend",
+        "shell": {
+          "executable": "/bin/zsh",
+          "args": ["-i", "-c"]
+        }
+      },
+      "presentation": {
+        "reveal": "always",
+        "panel": "dedicated",
+        "group": "frontend"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "pattern": {
+          "regexp": "^([^\\\\s].*):(\\\\d+):(\\\\d+):\\\\s+(warning|error):\\\\s+(.*)$",
+          "file": 1,
+          "line": 2,
+          "column": 3,
+          "severity": 4,
+          "message": 5
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*Starting.*",
+          "endsPattern": ".*(ready|compiled|started).*"
+        }
+      }
+    }
+  ]
+}
