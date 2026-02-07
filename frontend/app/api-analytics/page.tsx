@@ -39,7 +39,7 @@ import {
   Cell,
 } from "recharts";
 
-export default function ApiAnalyticsPage() {
+export default function ApiUsagePage() {
   const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesData[]>([]);
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
   const [selectedApiKey, setSelectedApiKey] = useState<string>("all");
@@ -204,7 +204,7 @@ export default function ApiAnalyticsPage() {
         <Card className="p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
           <div className="flex gap-4 items-center flex-wrap">
             {/* <div className="flex items-center gap-3"> */}
-            {/* <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              {/* <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Time Range:
               </label>
               <div className="flex gap-2">

@@ -23,6 +23,7 @@ export interface RequestLogData {
 
 export interface ApiKeyMetricData {
   apiKey: string;
+  name?: string | null;
   totalRequests: number;
   totalRateLimited: number;
   avgResponseTimeMs: number;
@@ -60,6 +61,7 @@ export interface SystemStats {
 
 export interface LogRequest {
   apiKey: string;
+  name?: string | null;
   endpoint: string;
   method: string;
   statusCode: number;

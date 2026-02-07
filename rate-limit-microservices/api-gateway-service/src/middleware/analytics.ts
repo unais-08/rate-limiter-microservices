@@ -23,6 +23,7 @@ export const analyticsMiddleware: RouteHandler = (req, res, next) => {
     // Log to analytics service (async, non-blocking)
     const analyticsData: AnalyticsRequestData = {
       apiKey: req.apiKey || "unknown",
+      name: req.apiKeyMetadata?.metadata?.name || null,
       endpoint: req.originalUrl || req.url,
       method: req.method,
       statusCode: res.statusCode,
@@ -63,6 +64,7 @@ export const logRequestAnalytics: RouteHandler = (req, res, next) => {
 
     const analyticsData: AnalyticsRequestData = {
       apiKey: req.apiKey || "unknown",
+      name: req.apiKeyMetadata?.metadata?.name || null,
       endpoint: req.originalUrl || req.url,
       method: req.method,
       statusCode: res.statusCode,

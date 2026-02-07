@@ -87,6 +87,7 @@ class AnalyticsService {
         await prisma.apiKeyMetric.create({
           data: {
             apiKey,
+            name: requestData.name || null,
             totalRequests: 1,
             totalRateLimited: rateLimitHit ? 1 : 0,
             avgResponseTimeMs: responseTimeMs,
@@ -296,6 +297,7 @@ class AnalyticsService {
         take: limit,
         select: {
           apiKey: true,
+          name: true,
           totalRateLimited: true,
           totalRequests: true,
         },
@@ -303,6 +305,7 @@ class AnalyticsService {
 
       return results.map((result: any) => ({
         api_key: result.apiKey,
+        name: result.name,
         total_rate_limited: result.totalRateLimited,
         total_requests: result.totalRequests,
         rate_limit_percentage:

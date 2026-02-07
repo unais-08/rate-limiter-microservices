@@ -67,6 +67,7 @@ export interface RateLimitStatus {
  */
 export interface AnalyticsRequestData {
   readonly apiKey: string;
+  readonly name?: string | null;
   readonly endpoint: string;
   readonly method: string;
   readonly statusCode: number;
