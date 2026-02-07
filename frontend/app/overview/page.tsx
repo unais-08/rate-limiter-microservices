@@ -1,427 +1,590 @@
 "use client";
 
+/**
+ * Overview Dashboard - Main Landing Page
+ *
+ * Provides a comprehensive view of the entire system:
+ * - Real-time metrics and KPIs
+ * - Recent API key activity
+ * - Quick actions
+ * - System health indicators
+ *
+ * This is the first page users see after login
+ */
+
+import { useEffect, useState } from "react";
+import { adminApi, analytics } from "@/lib/api";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { showToast } from "@/lib/toast";
 import DashboardLayout from "@/components/DashboardLayout";
+import Link from "next/link";
 import {
-  Activity,
-  Server,
-  Shield,
-  BarChart3,
-  Key,
-  Zap,
-  CheckCircle,
-  ArrowRight,
-} from "lucide-react";
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 export default function OverviewPage() {
-  return (
-    <DashboardLayout>
-      <div className="space-y-8">
-        {/* Header */}
-        <div className="text-center max-w-4xl mx-auto">
-          <h1 className="text-4xl font-bold text-white mb-4">
-            Microservices-Based API Rate Limiter
-          </h1>
-          <p className="text-xl text-gray-300 mb-2">
-            Production-Ready System with Real-Time Analytics
-          </p>
-          <p className="text-gray-400">
-            A scalable, distributed rate limiting solution designed for
-            high-traffic APIs
-          </p>
-        </div>
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [timeSeriesData, setTimeSeriesData] = useState<any[]>([]);
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-        {/* Architecture Overview */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-8">
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-2">
-            <Server className="h-6 w-6 text-blue-500" />
-            System Architecture
-          </h2>
+  useEffect(() => {
+    fetchDashboardData();
 
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-            {/* Client */}
-            <div className="bg-gray-900 rounded-lg p-6 border border-gray-700">
-              <div className="h-12 w-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
-                <Activity className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="font-semibold text-white mb-2">Client</h3>
-              <p className="text-sm text-gray-400">
-                Sends requests with API key
-              </p>
-            </div>
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(fetchDashboardData, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
-            <div className="flex items-center justify-center">
-              <ArrowRight className="h-6 w-6 text-gray-600" />
-            </div>
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
 
-            {/* API Gateway */}
-            <div className="bg-gradient-to-br from-blue-900 to-blue-800 rounded-lg p-6 border border-blue-700">
-              <div className="h-12 w-12 bg-blue-600 rounded-lg flex items-center justify-center mb-4">
-                <Shield className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="font-semibold text-white mb-2">API Gateway</h3>
-              <p className="text-sm text-blue-200">
-                Entry point, validates & routes
-              </p>
-            </div>
+      // Fetch dashboard overview
+      try {
+        const dashResponse = await adminApi.getDashboard();
+        console.log("Dashboard data:", dashResponse.data.data);
+        setDashboardData(dashResponse.data.data);
+      } catch (error) {
+        console.error("Failed to fetch dashboard", error);
+      }
 
-            <div className="flex items-center justify-center">
-              <ArrowRight className="h-6 w-6 text-gray-600" />
-            </div>
+      // Fetch time-series for last 24 hours
+      try {
+        const timeSeriesResponse = await analytics.getTimeSeriesData({
+          hours: 24,
+          interval: "hour",
+        });
+        const rawData = timeSeriesResponse.data.data;
+        console.log("Time series data:", rawData);
+        const transformedData = rawData.map((item: any) => ({
+          time: new Date(item.time_bucket).toLocaleString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          requests: item.request_count || 0,
+          successful: item.request_count - item.rate_limited_count || 0,
+          rateLimited: item.rate_limited_count || 0,
+        }));
+        console.log("Transformed time series data:", transformedData);
 
-            {/* Backend */}
-            <div className="bg-gray-900 rounded-lg p-6 border border-gray-700">
-              <div className="h-12 w-12 bg-green-600 rounded-lg flex items-center justify-center mb-4">
-                <Server className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="font-semibold text-white mb-2">Backend Service</h3>
-              <p className="text-sm text-gray-400">Protected resources</p>
-            </div>
-          </div>
+        setTimeSeriesData(transformedData);
+      } catch (error) {
+        console.error("Failed to fetch time series", error);
+      }
+    } catch (error: any) {
+      showToast("Failed to fetch dashboard data", "error");
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-          {/* Microservices Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-gray-900 rounded-lg p-6 border border-purple-700">
-              <div className="h-12 w-12 bg-purple-600 rounded-lg flex items-center justify-center mb-4">
-                <Zap className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="font-semibold text-white mb-2">Rate Limiter</h3>
-              <p className="text-sm text-gray-400 mb-4">
-                Token bucket algorithm with Redis
-              </p>
-              <div className="space-y-1 text-xs text-gray-500">
-                <div>• Per-key limits</div>
-                <div>• Sub-second precision</div>
-                <div>• Distributed state</div>
-              </div>
-            </div>
-
-            <div className="bg-gray-900 rounded-lg p-6 border border-yellow-700">
-              <div className="h-12 w-12 bg-yellow-600 rounded-lg flex items-center justify-center mb-4">
-                <BarChart3 className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="font-semibold text-white mb-2">
-                Analytics Service
-              </h3>
-              <p className="text-sm text-gray-400 mb-4">
-                Real-time metrics with PostgreSQL
-              </p>
-              <div className="space-y-1 text-xs text-gray-500">
-                <div>• Request logging</div>
-                <div>• Time-series data</div>
-                <div>• Usage analytics</div>
-              </div>
-            </div>
-
-            <div className="bg-gray-900 rounded-lg p-6 border border-green-700">
-              <div className="h-12 w-12 bg-green-600 rounded-lg flex items-center justify-center mb-4">
-                <Key className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="font-semibold text-white mb-2">Admin Service</h3>
-              <p className="text-sm text-gray-400 mb-4">
-                Management & monitoring dashboard
-              </p>
-              <div className="space-y-1 text-xs text-gray-500">
-                <div>• API key CRUD</div>
-                <div>• JWT authentication</div>
-                <div>• System monitoring</div>
-              </div>
-            </div>
-
-            <div className="bg-gray-900 rounded-lg p-6 border border-red-700">
-              <div className="h-12 w-12 bg-red-600 rounded-lg flex items-center justify-center mb-4">
-                <Server className="h-6 w-6 text-white" />
-              </div>
-              <h3 className="font-semibold text-white mb-2">Backend Service</h3>
-              <p className="text-sm text-gray-400 mb-4">
-                Protected API endpoints
-              </p>
-              <div className="space-y-1 text-xs text-gray-500">
-                <div>• Business logic</div>
-                <div>• Data operations</div>
-                <div>• Rate-limit aware</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* How It Works */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-8">
-          <h2 className="text-2xl font-bold text-white mb-6">How It Works</h2>
-
-          <div className="space-y-6">
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold">
-                1
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  Request Arrives at API Gateway
-                </h3>
-                <p className="text-gray-400">
-                  Client sends HTTP request with{" "}
-                  <code className="bg-gray-900 px-2 py-1 rounded">
-                    X-API-Key
-                  </code>{" "}
-                  header to the Gateway service (port 3000). Gateway validates
-                  the API key format and checks if it exists.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center text-white font-bold">
-                2
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  Rate Limit Check
-                </h3>
-                <p className="text-gray-400">
-                  Gateway calls Rate Limiter service (port 3002) which uses
-                  Redis to implement a token bucket algorithm. Each API key has
-                  a specific rate limit (e.g., 10 requests/minute). If tokens
-                  are available, request proceeds; otherwise, returns 429
-                  status.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white font-bold">
-                3
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  Request Forwarding
-                </h3>
-                <p className="text-gray-400">
-                  If rate limit allows, Gateway forwards the request to Backend
-                  service (port 3001). Backend processes the request and returns
-                  response. Gateway adds rate limit headers:{" "}
-                  <code className="bg-gray-900 px-2 py-1 rounded">
-                    X-RateLimit-Remaining
-                  </code>
-                  ,{" "}
-                  <code className="bg-gray-900 px-2 py-1 rounded">
-                    X-RateLimit-Reset
-                  </code>
-                  .
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-yellow-600 rounded-full flex items-center justify-center text-white font-bold">
-                4
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  Analytics Logging
-                </h3>
-                <p className="text-gray-400">
-                  After response is sent, Gateway logs request metadata to
-                  Analytics service (port 3003) asynchronously. Analytics stores
-                  data in PostgreSQL with tables for request logs, API key
-                  metrics, and endpoint statistics. This powers the real-time
-                  dashboard.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold">
-                5
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white mb-2">
-                  Dashboard Updates
-                </h3>
-                <p className="text-gray-400">
-                  This frontend (Next.js on port 8080) polls Admin service (port
-                  3004) every 5 seconds. Admin service aggregates data from
-                  Analytics service. Dashboard displays real-time metrics: total
-                  requests, blocked requests, charts, and recent violations.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Technical Stack */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-            <h3 className="text-xl font-bold text-white mb-4">
-              Technology Stack
-            </h3>
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-semibold text-blue-400 mb-2">Backend</h4>
-                <div className="flex flex-wrap gap-2">
-                  <span className="bg-gray-900 px-3 py-1 rounded text-sm text-gray-300">
-                    Node.js
-                  </span>
-                  <span className="bg-gray-900 px-3 py-1 rounded text-sm text-gray-300">
-                    Express.js
-                  </span>
-                  <span className="bg-gray-900 px-3 py-1 rounded text-sm text-gray-300">
-                    TypeScript
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold text-green-400 mb-2">Frontend</h4>
-                <div className="flex flex-wrap gap-2">
-                  <span className="bg-gray-900 px-3 py-1 rounded text-sm text-gray-300">
-                    Next.js 16
-                  </span>
-                  <span className="bg-gray-900 px-3 py-1 rounded text-sm text-gray-300">
-                    React 19
-                  </span>
-                  <span className="bg-gray-900 px-3 py-1 rounded text-sm text-gray-300">
-                    TailwindCSS
-                  </span>
-                  <span className="bg-gray-900 px-3 py-1 rounded text-sm text-gray-300">
-                    Axios
-                  </span>
-                  <span className="bg-gray-900 px-3 py-1 rounded text-sm text-gray-300">
-                    Recharts
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-semibold text-purple-400 mb-2">
-                  Data Stores
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  <span className="bg-gray-900 px-3 py-1 rounded text-sm text-gray-300">
-                    Redis
-                  </span>
-                  <span className="bg-gray-900 px-3 py-1 rounded text-sm text-gray-300">
-                    PostgreSQL
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-            <h3 className="text-xl font-bold text-white mb-4">Key Features</h3>
-            <div className="space-y-3">
-              {[
-                "Token bucket algorithm for smooth rate limiting",
-                "Distributed state management with Redis",
-                "Real-time analytics with PostgreSQL",
-                "JWT-based admin authentication",
-                "RESTful API design",
-                "Horizontal scalability",
-                "Comprehensive error handling",
-                "Production-grade logging",
-                "Automatic database migrations",
-                "Interactive API documentation",
-              ].map((feature, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                  <span className="text-gray-300">{feature}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* Demo Flow */}
-        <div className="bg-gradient-to-br from-blue-900 to-purple-900 rounded-lg border border-blue-700 p-8">
-          <h2 className="text-2xl font-bold text-white mb-4">Live Demo Flow</h2>
-          <p className="text-blue-100 mb-6">
-            This dashboard demonstrates real backend integration:
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
-              <div className="text-2xl font-bold text-white mb-2">1</div>
-              <h4 className="font-semibold text-white mb-2">Create API Key</h4>
-              <p className="text-sm text-blue-100">
-                Go to <strong>API Keys</strong> page and create a new key with
-                custom rate limit
-              </p>
-            </div>
-
-            <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
-              <div className="text-2xl font-bold text-white mb-2">2</div>
-              <h4 className="font-semibold text-white mb-2">
-                Simulate Requests
-              </h4>
-              <p className="text-sm text-blue-100">
-                Use <strong>Request Simulator</strong> to send real API calls
-                and see rate limiting in action
-              </p>
-            </div>
-
-            <div className="bg-white/10 rounded-lg p-4 backdrop-blur">
-              <div className="text-2xl font-bold text-white mb-2">3</div>
-              <h4 className="font-semibold text-white mb-2">Watch Dashboard</h4>
-              <p className="text-sm text-blue-100">
-                Return to <strong>Dashboard</strong> to see real-time metrics
-                update automatically
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white/5 rounded-lg p-4 border border-white/10">
-            <p className="text-sm text-blue-100">
-              <strong>💡 Pro Tip:</strong> Open multiple browser tabs to
-              simulate concurrent requests and observe how the rate limiter
-              handles traffic spikes. Try the "Rate Limit Test" button to
-              quickly exceed your limit and trigger 429 responses.
+  // console.log();
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="inline-block w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin mb-2"></div>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Loading dashboard...
             </p>
           </div>
         </div>
+      </DashboardLayout>
+    );
+  }
 
-        {/* Service Ports */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-          <h3 className="text-xl font-bold text-white mb-4">
-            Service Endpoints
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <div className="bg-gray-900 rounded p-4 border border-gray-700">
-              <div className="text-blue-400 font-mono text-sm mb-1">
-                http://localhost:3000
+  const overview = dashboardData?.overview || {};
+
+  return (
+    <DashboardLayout>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+              Overview
+            </h1>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              Monitor your API usage and performance
+            </p>
+          </div>
+          <Badge className="px-3 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border border-green-200 dark:border-green-800 text-xs font-medium">
+            Live
+          </Badge>
+        </div>
+
+        {/* Key Metrics */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Total Requests
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">
+                  {dashboardData.metrics.total_requests}
+                </p>
               </div>
-              <div className="text-gray-400 text-sm">API Gateway</div>
+              <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <svg
+                  className="w-6 h-6 text-blue-600 dark:text-blue-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  />
+                </svg>
+              </div>
             </div>
-            <div className="bg-gray-900 rounded p-4 border border-gray-700">
-              <div className="text-green-400 font-mono text-sm mb-1">
-                http://localhost:3001
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              All time
+            </p>
+          </Card>
+
+          <Card className="p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Success Rate
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-green-600 dark:text-green-500">
+                  {dashboardData.metrics.total_requests > 0
+                    ? Math.round(
+                        ((dashboardData.metrics.total_requests -
+                          dashboardData.metrics.total_rate_limited) /
+                          dashboardData.metrics.total_requests) *
+                          100,
+                      )
+                    : 0}
+                  %
+                </p>
               </div>
-              <div className="text-gray-400 text-sm">Backend Service</div>
+              <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                <svg
+                  className="w-6 h-6 text-green-600 dark:text-green-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </div>
             </div>
-            <div className="bg-gray-900 rounded p-4 border border-gray-700">
-              <div className="text-purple-400 font-mono text-sm mb-1">
-                http://localhost:3002
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              {(
+                (dashboardData.metrics.total_requests || 0) -
+                (dashboardData.metrics.total_rate_limited || 0)
+              ).toLocaleString()}{" "}
+              successful
+            </p>
+          </Card>
+
+          <Card className="p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Rate Limited
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-red-600 dark:text-red-500">
+                  {dashboardData.metrics.total_rate_limited}
+                </p>
               </div>
-              <div className="text-gray-400 text-sm">Rate Limiter</div>
+              <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                <svg
+                  className="w-6 h-6 text-red-600 dark:text-red-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+              </div>
             </div>
-            <div className="bg-gray-900 rounded p-4 border border-gray-700">
-              <div className="text-yellow-400 font-mono text-sm mb-1">
-                http://localhost:3003
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              Rejected requests
+            </p>
+          </Card>
+
+          <Card className="p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Total Keys
+                </p>
+                <p className="mt-2 text-3xl font-semibold text-purple-600 dark:text-purple-500">
+                  {dashboardData.metrics.unique_api_keys}
+                </p>
               </div>
-              <div className="text-gray-400 text-sm">Analytics Service</div>
+              <div className="p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                <svg
+                  className="w-6 h-6 text-purple-600 dark:text-purple-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                  />
+                </svg>
+              </div>
             </div>
-            <div className="bg-gray-900 rounded p-4 border border-gray-700">
-              <div className="text-indigo-400 font-mono text-sm mb-1">
-                http://localhost:3004
+            <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+              In use
+            </p>
+          </Card>
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Request Trends */}
+          <Card className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
+              Request Trends
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Last 12 hours
+            </p>
+            {timeSeriesData.length === 0 ? (
+              <div className="h-64 flex items-center justify-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  No data available
+                </p>
               </div>
-              <div className="text-gray-400 text-sm">Admin Service</div>
+            ) : (
+              <ResponsiveContainer width="100%" height={250}>
+                <AreaChart data={timeSeriesData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#e5e7eb"
+                    className="dark:stroke-gray-700"
+                  />
+                  <XAxis
+                    dataKey="time"
+                    tick={{ fontSize: 11, fill: "#6b7280" }}
+                    stroke="#6b7280"
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "#6b7280" }}
+                    stroke="#6b7280"
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "6px",
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="requests"
+                    stroke="#3b82f6"
+                    fill="#3b82f6"
+                    fillOpacity={0.1}
+                    name="Requests"
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </Card>
+
+          {/* Success vs Rate Limited */}
+          <Card className="p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-4">
+              Request Status
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Success vs Rate Limited
+            </p>
+            {timeSeriesData.length === 0 ? (
+              <div className="h-64 flex items-center justify-center">
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  No data available
+                </p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={250}>
+                <LineChart data={timeSeriesData}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="#e5e7eb"
+                    className="dark:stroke-gray-700"
+                  />
+                  <XAxis
+                    dataKey="time"
+                    tick={{ fontSize: 11, fill: "#6b7280" }}
+                    stroke="#6b7280"
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "#6b7280" }}
+                    stroke="#6b7280"
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "6px",
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="successful"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    name="Successful"
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="rateLimited"
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    name="Rate Limited"
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </Card>
+        </div>
+
+        {/*  Quick Actions */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Quick Actions */}
+          <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+            <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+                Quick Actions
+              </h2>
             </div>
-            <div className="bg-gray-900 rounded p-4 border border-gray-700">
-              <div className="text-pink-400 font-mono text-sm mb-1">
-                http://localhost:8080
+            <div className="p-6">
+              <div className="space-y-3">
+                <Link href="/api-keys" className="block">
+                  <button className="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors border border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center gap-3">
+                      <svg
+                        className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+                        />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        Manage API Keys
+                      </span>
+                    </div>
+                  </button>
+                </Link>
+
+                <Link href="/api-usage" className="block">
+                  <button className="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors border border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center gap-3">
+                      <svg
+                        className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                        />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        View Analytics
+                      </span>
+                    </div>
+                  </button>
+                </Link>
+
+                <Link href="/simulator" className="block">
+                  <button className="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors border border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center gap-3">
+                      <svg
+                        className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
+                        />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        Test Simulator
+                      </span>
+                    </div>
+                  </button>
+                </Link>
+
+                <Link href="/monitoring" className="block">
+                  <button className="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors border border-gray-200 dark:border-gray-600">
+                    <div className="flex items-center gap-3">
+                      <svg
+                        className="w-5 h-5 text-gray-600 dark:text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                        />
+                      </svg>
+                      <span className="text-sm font-medium text-gray-900 dark:text-white">
+                        System Monitor
+                      </span>
+                    </div>
+                  </button>
+                </Link>
               </div>
-              <div className="text-gray-400 text-sm">Frontend Dashboard</div>
+            </div>
+          </Card>
+        </div>
+
+        {/* System Information */}
+        <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+              System Status
+            </h2>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="flex items-start gap-4">
+                <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                  <svg
+                    className="w-5 h-5 text-blue-600 dark:text-blue-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 10V3L4 14h7v7l9-11h-7z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    Rate Limiting
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Token Bucket Algorithm
+                  </p>
+                  <Badge className="mt-2 inline-flex px-2 py-0.5 text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0">
+                    Active
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                  <svg
+                    className="w-5 h-5 text-green-600 dark:text-green-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    Response Time
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    {Math.round(dashboardData.metrics.avg_response_time || 0)}ms
+                    average
+                  </p>
+                  <Badge className="mt-2 inline-flex px-2 py-0.5 text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0">
+                    Healthy
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4">
+                <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                  <svg
+                    className="w-5 h-5 text-purple-600 dark:text-purple-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-900 dark:text-white">
+                    Infrastructure
+                  </p>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    Microservices (4 services)
+                  </p>
+                  <Badge className="mt-2 inline-flex px-2 py-0.5 text-xs bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-0">
+                    Operational
+                  </Badge>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </Card>
       </div>
     </DashboardLayout>
   );

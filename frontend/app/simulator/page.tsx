@@ -1,157 +1,181 @@
 "use client";
 
-import { useState } from "react";
-import {
-  Send,
-  Clock,
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Activity,
-  Copy,
-} from "lucide-react";
-import DashboardLayout from "@/components/DashboardLayout";
-import { gateway } from "@/lib/api";
-import { AxiosError } from "axios";
+/**
+ * API Simulator Tool
+ *
+ * This tool allows users to:
+ * - Test API rate limits in real-time
+ * - Send multiple requests to API Gateway
+ * - See rate limit errors and responses
+ * - Visualize request success/failure patterns
+ *
+ * Purpose: Demonstrate how rate limiting works
+ */
 
-interface RequestResponse {
-  status: number;
-  statusText: string;
-  data: any;
-  headers: Record<string, string>;
+import { useState, useEffect } from "react";
+import { adminApi, gatewayApi } from "@/lib/api";
+import { ApiKey } from "@/lib/types";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { showToast } from "@/lib/toast";
+import DashboardLayout from "@/components/DashboardLayout";
+
+interface RequestResult {
+  id: number;
   timestamp: string;
-  duration: number;
+  status: "success" | "rate-limited" | "error";
+  statusCode: number;
+  responseTime: number;
+  message?: string;
 }
 
 export default function SimulatorPage() {
-  const [apiKey, setApiKey] = useState("");
-  const [method, setMethod] = useState("GET");
-  const [endpoint, setEndpoint] = useState("/api/v1/users");
-  const [customHeaders, setCustomHeaders] = useState("");
-  const [requestBody, setRequestBody] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [response, setResponse] = useState<RequestResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [selectedApiKey, setSelectedApiKey] = useState<string>("");
+  const [endpoint, setEndpoint] = useState<string>("/api/v1/resources");
+  const [requestCount, setRequestCount] = useState<number>(10);
+  const [delayMs, setDelayMs] = useState<number>(100);
+  const [results, setResults] = useState<RequestResult[]>([]);
+  const [isRunning, setIsRunning] = useState(false);
+  const [progress, setProgress] = useState(0);
 
-  // Predefined endpoints
-  const endpoints = [
-    { value: "/api/v1/users", label: "Get Users", method: "GET" },
-    { value: "/api/v1/orders", label: "Get Orders", method: "GET" },
-    { value: "/api/v1/products", label: "Get Products", method: "GET" },
-    { value: "/api/v1/users", label: "Create User", method: "POST" },
-  ];
+  useEffect(() => {
+    fetchApiKeys();
+  }, []);
 
-  const handleSendRequest = async () => {
-    if (!apiKey.trim()) {
-      setError("Please enter an API key");
+  const fetchApiKeys = async () => {
+    try {
+      const response = await adminApi.getApiKeys();
+      const keys = response.data.data || [];
+
+      setApiKeys(keys.filter((k: ApiKey) => k.enabled));
+      console.log("ALL APIS {keys} :", keys);
+
+      if (keys.length > 0) {
+        setSelectedApiKey(keys[0].apiKey);
+        console.log("Setting default selected API key:", keys[0].apiKey);
+      }
+
+      console.log("apiKeys", apiKeys);
+      console.log("selectedApiKey", selectedApiKey);
+    } catch (error) {
+      showToast("Failed to fetch API keys", "error");
+    }
+  };
+
+  const runSimulation = async () => {
+    if (!selectedApiKey) {
+      showToast("Please select an API key", "error");
       return;
     }
 
-    setIsLoading(true);
-    setError(null);
-    setResponse(null);
+    setIsRunning(true);
+    setResults([]);
+    setProgress(0);
 
-    const startTime = Date.now();
+    const newResults: RequestResult[] = [];
 
-    try {
-      // Parse custom headers
-      let headers: Record<string, string> = {
-        "X-API-Key": apiKey.trim(),
-      };
-
-      if (customHeaders.trim()) {
-        try {
-          const parsed = JSON.parse(customHeaders);
-          headers = { ...headers, ...parsed };
-        } catch (e) {
-          setError("Invalid JSON in custom headers");
-          setIsLoading(false);
-          return;
-        }
-      }
-
-      // Parse request body
-      let body = null;
-      if (requestBody.trim() && ["POST", "PUT", "PATCH"].includes(method)) {
-        try {
-          body = JSON.parse(requestBody);
-        } catch (e) {
-          setError("Invalid JSON in request body");
-          setIsLoading(false);
-          return;
-        }
-      }
-
-      // Make the request
-      const result = await gateway.request({
-        method,
-        endpoint,
-        headers,
-        body,
-      });
-
-      const duration = Date.now() - startTime;
-
-      setResponse({
-        status: result.status,
-        statusText: result.statusText,
-        data: result.data,
-        headers: {
-          "x-ratelimit-limit": result.headers["x-ratelimit-limit"] || "N/A",
-          "x-ratelimit-remaining":
-            result.headers["x-ratelimit-remaining"] || "N/A",
-          "x-ratelimit-reset": result.headers["x-ratelimit-reset"] || "N/A",
-        },
-        timestamp: new Date().toISOString(),
-        duration,
-      });
-    } catch (err) {
-      const axiosError = err as AxiosError;
-      const duration = Date.now() - startTime;
-
-      if (axiosError.response) {
-        setResponse({
-          status: axiosError.response.status,
-          statusText: axiosError.response.statusText,
-          data: axiosError.response.data,
+    for (let i = 0; i < requestCount; i++) {
+      const startTime = Date.now();
+      console.log("API KEY:", selectedApiKey);
+      console.log("Endpoint:", endpoint);
+      try {
+        const response = await gatewayApi.get(endpoint, {
           headers: {
-            "x-ratelimit-limit":
-              axiosError.response.headers["x-ratelimit-limit"] || "N/A",
-            "x-ratelimit-remaining":
-              axiosError.response.headers["x-ratelimit-remaining"] || "N/A",
-            "x-ratelimit-reset":
-              axiosError.response.headers["x-ratelimit-reset"] || "N/A",
+            "X-API-Key": selectedApiKey,
           },
-          timestamp: new Date().toISOString(),
-          duration,
         });
-      } else {
-        setError(axiosError.message || "Request failed");
+
+        console.log("Response:", response);
+        const endTime = Date.now();
+        const responseTime = endTime - startTime;
+
+        newResults.push({
+          id: i + 1,
+          timestamp: new Date().toLocaleTimeString(),
+          status: "success",
+          statusCode: response.status,
+          responseTime,
+        });
+      } catch (error: any) {
+        const endTime = Date.now();
+        const responseTime = endTime - startTime;
+        const statusCode = error.response?.status || 0;
+
+        newResults.push({
+          id: i + 1,
+          timestamp: new Date().toLocaleTimeString(),
+          status: statusCode === 429 ? "rate-limited" : "error",
+          statusCode,
+          responseTime,
+          message: error.response?.data?.error || error.message,
+        });
       }
-    } finally {
-      setIsLoading(false);
+
+      setResults([...newResults]);
+      setProgress(((i + 1) / requestCount) * 100);
+
+      // Delay between requests
+      if (i < requestCount - 1 && delayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+
+    setIsRunning(false);
+    showToast("Simulation completed", "success");
+  };
+
+  const stopSimulation = () => {
+    setIsRunning(false);
+    showToast("Simulation stopped", "info");
+  };
+
+  const clearResults = () => {
+    setResults([]);
+    setProgress(0);
+  };
+
+  // Calculate statistics
+  const stats = {
+    total: results.length,
+    success: results.filter((r) => r.status === "success").length,
+    rateLimited: results.filter((r) => r.status === "rate-limited").length,
+    errors: results.filter((r) => r.status === "error").length,
+    avgResponseTime:
+      results.length > 0
+        ? Math.round(
+            results.reduce((sum, r) => sum + r.responseTime, 0) /
+              results.length,
+          )
+        : 0,
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "success":
+        return "text-green-600";
+      case "rate-limited":
+        return "text-red-600";
+      case "error":
+        return "text-orange-600";
+      default:
+        return "text-gray-600";
     }
   };
 
-  const getStatusIcon = () => {
-    if (!response) return null;
-
-    if (response.status === 429) {
-      return <AlertTriangle className="h-6 w-6 text-yellow-500" />;
-    } else if (response.status >= 200 && response.status < 300) {
-      return <CheckCircle className="h-6 w-6 text-green-500" />;
-    } else {
-      return <XCircle className="h-6 w-6 text-red-500" />;
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case "success":
+        return "✓";
+      case "rate-limited":
+        return "⛔";
+      case "error":
+        return "✗";
+      default:
+        return "?";
     }
-  };
-
-  const getStatusColor = () => {
-    if (!response) return "";
-
-    if (response.status === 429) return "text-yellow-500";
-    if (response.status >= 200 && response.status < 300)
-      return "text-green-500";
-    return "text-red-500";
   };
 
   return (
@@ -159,287 +183,231 @@ export default function SimulatorPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-white">Request Simulator</h1>
-          <p className="text-gray-400 mt-2">
-            Send real API requests and see rate limiting in action
+          <h1 className="text-3xl font-bold text-gray-900">API Simulator</h1>
+          <p className="text-gray-500 mt-1">
+            Test rate limits by sending multiple requests to the API Gateway
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Request Configuration */}
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-            <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-              <Send className="h-5 w-5 text-blue-500" />
-              Request Configuration
-            </h2>
+        {/* Configuration */}
+        <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4">
+            Simulation Configuration
+          </h2>
 
-            <div className="space-y-4">
-              {/* API Key Input */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  API Key *
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="sk_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  {apiKey && (
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(apiKey);
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Enter your API key from the Keys page
-                </p>
-              </div>
-
-              {/* Method and Endpoint */}
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Method
-                  </label>
-                  <select
-                    value={method}
-                    onChange={(e) => setMethod(e.target.value)}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option>GET</option>
-                    <option>POST</option>
-                    <option>PUT</option>
-                    <option>DELETE</option>
-                    <option>PATCH</option>
-                  </select>
-                </div>
-
-                <div className="col-span-2">
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Endpoint
-                  </label>
-                  <select
-                    value={endpoint}
-                    onChange={(e) => setEndpoint(e.target.value)}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {endpoints.map((ep) => (
-                      <option key={`${ep.method}-${ep.value}`} value={ep.value}>
-                        {ep.label} ({ep.method})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Custom Headers */}
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Custom Headers (JSON)
-                </label>
-                <textarea
-                  value={customHeaders}
-                  onChange={(e) => setCustomHeaders(e.target.value)}
-                  placeholder='{"Authorization": "Bearer token"}'
-                  rows={3}
-                  className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              {/* Request Body */}
-              {["POST", "PUT", "PATCH"].includes(method) && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Request Body (JSON)
-                  </label>
-                  <textarea
-                    value={requestBody}
-                    onChange={(e) => setRequestBody(e.target.value)}
-                    placeholder='{"name": "John Doe"}'
-                    rows={4}
-                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              )}
-
-              {/* Send Button */}
-              <button
-                onClick={handleSendRequest}
-                disabled={isLoading || !apiKey.trim()}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                API Key *
+              </label>
+              <select
+                value={selectedApiKey}
+                onChange={(e) => setSelectedApiKey(e.target.value)}
+                disabled={isRunning}
+                className="w-full border border-gray-300 rounded px-3 py-2"
               >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                    Sending...
-                  </>
-                ) : (
-                  <>
-                    <Send className="h-5 w-5" />
-                    Send Request
-                  </>
-                )}
-              </button>
+                <option value="">Select an API key</option>
+                {apiKeys.map((key) => (
+                  <option key={key.id} value={key.apiKey}>
+                    {key.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">Endpoint</label>
+              <Input
+                value={endpoint}
+                onChange={(e) => setEndpoint(e.target.value)}
+                disabled={isRunning}
+                placeholder="/api/v1/resources"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Number of Requests
+              </label>
+              <Input
+                type="number"
+                value={requestCount}
+                onChange={(e) => setRequestCount(parseInt(e.target.value) || 1)}
+                disabled={isRunning}
+                min="1"
+                max="100"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2">
+                Delay Between Requests (ms)
+              </label>
+              <Input
+                type="number"
+                value={delayMs}
+                onChange={(e) => setDelayMs(parseInt(e.target.value) || 0)}
+                disabled={isRunning}
+                min="0"
+                max="5000"
+              />
             </div>
           </div>
 
-          {/* Response Display */}
-          <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-            <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-              <Activity className="h-5 w-5 text-green-500" />
-              Response
-            </h2>
-
-            {error && (
-              <div className="bg-red-900/20 border border-red-500 rounded-lg p-4 mb-4">
-                <div className="flex items-center gap-2 text-red-400">
-                  <XCircle className="h-5 w-5" />
-                  <span className="font-medium">Error</span>
-                </div>
-                <p className="text-red-300 mt-2">{error}</p>
-              </div>
+          <div className="flex gap-3 mt-6">
+            <Button
+              onClick={runSimulation}
+              disabled={isRunning || !selectedApiKey}
+              className="flex-1"
+            >
+              {isRunning ? "Running..." : "Start Simulation"}
+            </Button>
+            {isRunning && (
+              <Button variant="outline" onClick={stopSimulation}>
+                Stop
+              </Button>
             )}
-
-            {!response && !error && (
-              <div className="text-center py-12 text-gray-500">
-                <Send className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No response yet. Send a request to see the result.</p>
-              </div>
-            )}
-
-            {response && (
-              <div className="space-y-4">
-                {/* Status */}
-                <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-gray-400 text-sm">Status</span>
-                    <div className="flex items-center gap-2">
-                      {getStatusIcon()}
-                      <span className={`text-xl font-bold ${getStatusColor()}`}>
-                        {response.status} {response.statusText}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm text-gray-400">
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      {response.duration}ms
-                    </div>
-                    <div>
-                      {new Date(response.timestamp).toLocaleTimeString()}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Rate Limit Headers */}
-                <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
-                  <h3 className="text-sm font-medium text-gray-300 mb-3">
-                    Rate Limit Headers
-                  </h3>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 text-sm">Limit:</span>
-                      <span className="text-white font-mono">
-                        {response.headers["x-ratelimit-limit"]}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 text-sm">Remaining:</span>
-                      <span className="text-white font-mono">
-                        {response.headers["x-ratelimit-remaining"]}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-gray-400 text-sm">Reset:</span>
-                      <span className="text-white font-mono">
-                        {response.headers["x-ratelimit-reset"]}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Response Body */}
-                <div className="bg-gray-900 rounded-lg p-4 border border-gray-700">
-                  <h3 className="text-sm font-medium text-gray-300 mb-3">
-                    Response Body
-                  </h3>
-                  <pre className="text-sm text-gray-300 overflow-auto max-h-96 font-mono">
-                    {JSON.stringify(response.data, null, 2)}
-                  </pre>
-                </div>
-              </div>
+            {results.length > 0 && !isRunning && (
+              <Button variant="outline" onClick={clearResults}>
+                Clear Results
+              </Button>
             )}
           </div>
-        </div>
 
-        {/* Quick Actions */}
-        <div className="bg-gray-800 rounded-lg border border-gray-700 p-6">
-          <h3 className="text-lg font-semibold text-white mb-4">
-            Quick Test Scenarios
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button
-              onClick={() => {
-                setMethod("GET");
-                setEndpoint("/api/v1/users");
-                setTimeout(handleSendRequest, 100);
-              }}
-              disabled={isLoading || !apiKey.trim()}
-              className="bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed border border-gray-600 rounded-lg p-4 text-left transition-colors"
-            >
-              <div className="text-blue-400 font-medium mb-1">
-                Normal Request
+          {/* Progress Bar */}
+          {isRunning && (
+            <div className="mt-4">
+              <div className="flex justify-between text-sm text-gray-600 mb-2">
+                <span>Progress</span>
+                <span>{Math.round(progress)}%</span>
               </div>
-              <div className="text-sm text-gray-400">
-                Send a single GET request
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                  style={{ width: `${progress}%` }}
+                ></div>
               </div>
-            </button>
+            </div>
+          )}
+        </Card>
 
-            <button
-              onClick={async () => {
-                setMethod("GET");
-                setEndpoint("/api/v1/users");
-                for (let i = 0; i < 5; i++) {
-                  await handleSendRequest();
-                  await new Promise((resolve) => setTimeout(resolve, 300));
-                }
-              }}
-              disabled={isLoading || !apiKey.trim()}
-              className="bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed border border-gray-600 rounded-lg p-4 text-left transition-colors"
-            >
-              <div className="text-yellow-400 font-medium mb-1">Burst Test</div>
-              <div className="text-sm text-gray-400">Send 5 rapid requests</div>
-            </button>
-
-            <button
-              onClick={async () => {
-                setMethod("GET");
-                setEndpoint("/api/v1/users");
-                for (let i = 0; i < 15; i++) {
-                  await handleSendRequest();
-                  await new Promise((resolve) => setTimeout(resolve, 100));
-                }
-              }}
-              disabled={isLoading || !apiKey.trim()}
-              className="bg-gray-700 hover:bg-gray-600 disabled:bg-gray-800 disabled:cursor-not-allowed border border-gray-600 rounded-lg p-4 text-left transition-colors"
-            >
-              <div className="text-red-400 font-medium mb-1">
-                Rate Limit Test
-              </div>
-              <div className="text-sm text-gray-400">
-                Exceed rate limit (15 requests)
-              </div>
-            </button>
+        {/* Statistics */}
+        {results.length > 0 && (
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <Card className="p-4">
+              <p className="text-xs text-gray-500 mb-1">Total</p>
+              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs text-gray-500 mb-1">Successful</p>
+              <p className="text-2xl font-bold text-green-600">
+                {stats.success}
+              </p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs text-gray-500 mb-1">Rate Limited</p>
+              <p className="text-2xl font-bold text-red-600">
+                {stats.rateLimited}
+              </p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs text-gray-500 mb-1">Errors</p>
+              <p className="text-2xl font-bold text-orange-600">
+                {stats.errors}
+              </p>
+            </Card>
+            <Card className="p-4">
+              <p className="text-xs text-gray-500 mb-1">Avg Time</p>
+              <p className="text-2xl font-bold text-purple-600">
+                {stats.avgResponseTime}ms
+              </p>
+            </Card>
           </div>
-        </div>
+        )}
+
+        {/* Results */}
+        {results.length > 0 && (
+          <Card className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Request Results</h2>
+
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {results.map((result) => (
+                <div
+                  key={result.id}
+                  className="flex items-center justify-between p-3 bg-gray-50 rounded border border-gray-200 text-sm"
+                >
+                  <div className="flex items-center gap-4 flex-1">
+                    <Badge variant="outline" className="font-mono text-xs">
+                      #{result.id}
+                    </Badge>
+                    <span
+                      className={`font-semibold ${getStatusColor(result.status)}`}
+                    >
+                      {getStatusIcon(result.status)}{" "}
+                      {result.status.toUpperCase()}
+                    </span>
+                    <span className="text-gray-500">{result.timestamp}</span>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <span className="text-gray-700">
+                      HTTP {result.statusCode}
+                    </span>
+                    <span className="text-purple-600 font-semibold">
+                      {result.responseTime}ms
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Rate Limit Warning */}
+            {stats.rateLimited > 0 && (
+              <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded">
+                <h3 className="font-semibold text-red-900 mb-2">
+                  ⛔ Rate Limit Hit!
+                </h3>
+                <p className="text-sm text-red-800">
+                  {stats.rateLimited} out of {stats.total} requests were rate
+                  limited. This means the API key exceeded its allowed request
+                  rate. The rate limiter uses a token bucket algorithm to
+                  control request flow.
+                </p>
+                <p className="text-sm text-red-800 mt-2">
+                  <strong>What to do:</strong> Wait for the bucket to refill
+                  based on the configured refill rate, or reduce the request
+                  frequency. Check the API Keys page to see your rate limit
+                  configuration.
+                </p>
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* Info Box */}
+        <Card className="p-4 bg-blue-50 border-blue-100">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">🧪</span>
+            <div className="flex-1">
+              <h3 className="font-semibold text-blue-900 mb-1">
+                How to Use the Simulator
+              </h3>
+              <ul className="text-sm text-blue-800 space-y-1 list-disc list-inside">
+                <li>Select an active API key from your collection</li>
+                <li>Configure the number of requests and delay between them</li>
+                <li>Click "Start Simulation" to begin sending requests</li>
+                <li>
+                  Watch for rate-limited responses (HTTP 429) when limits are
+                  exceeded
+                </li>
+                <li>
+                  Use different delay values to test burst capacity vs sustained
+                  rate
+                </li>
+              </ul>
+            </div>
+          </div>
+        </Card>
       </div>
     </DashboardLayout>
   );

@@ -29,6 +29,14 @@ export const useToast = () => {
   return context;
 };
 
+// Standalone toast function for use outside of components
+export const showToast = (message: string, type: ToastType = "info") => {
+  // Create a simple browser notification fallback
+  if (typeof window !== "undefined") {
+    console.log(`[${type.toUpperCase()}] ${message}`);
+  }
+};
+
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([]);
 

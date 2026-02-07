@@ -1,666 +1,494 @@
 "use client";
 
+/**
+ * API Usage Analytics Dashboard
+ *
+ * This page provides comprehensive analytics for API usage:
+ * - Requests over time (line chart)
+ * - Success vs rate-limited requests (bar chart)
+ * - Per API key analytics
+ * - Time range filters (1h, 24h, 7d, 30d)
+ * - Real-time data updates
+ *
+ * Data sources:
+ * - Analytics Service: /api/v1/analytics/time-series
+ * - Analytics Service: /api/v1/analytics/api-keys
+ */
+
 import { useEffect, useState } from "react";
-import DashboardLayout from "@/components/DashboardLayout";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { analytics, adminApi } from "@/lib/api";
+import { ApiKey, TimeSeriesData } from "@/lib/types";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { showToast } from "@/lib/toast";
+import DashboardLayout from "@/components/DashboardLayout";
 import {
   LineChart,
   Line,
   BarChart,
   Bar,
-  PieChart,
-  Pie,
-  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Area,
-  AreaChart,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
-import {
-  Activity,
-  TrendingUp,
-  TrendingDown,
-  Clock,
-  AlertCircle,
-  CheckCircle,
-  XCircle,
-  BarChart2,
-  Key,
-  RefreshCw,
-} from "lucide-react";
-import { adminApi, analyticsApi } from "@/lib/api";
-
-interface ApiKeyData {
-  apiKey: string;
-  name: string;
-  totalRequests: number;
-  rateLimited: number;
-  avgResponseTime: number;
-  successRate: number;
-  lastUsed: string;
-}
-
-interface EndpointData {
-  endpoint: string;
-  method: string;
-  totalRequests: number;
-  avgResponseTime: number;
-  successRate: number;
-}
-
-interface TimeSeriesData {
-  timestamp: string;
-  requests: number;
-  rateLimited: number;
-  avgResponseTime: number;
-}
-
-interface RequestLog {
-  id: string;
-  apiKey: string;
-  endpoint: string;
-  method: string;
-  statusCode: number;
-  responseTimeMs: number;
-  rateLimitHit: boolean;
-  timestamp: string;
-}
-
-const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
 export default function ApiUsagePage() {
-  const [selectedApiKey, setSelectedApiKey] = useState<string>("all");
-  const [timeRange, setTimeRange] = useState<string>("24");
-  const [apiKeys, setApiKeys] = useState<any[]>([]);
-  const [apiKeyStats, setApiKeyStats] = useState<ApiKeyData[]>([]);
-  const [endpointStats, setEndpointStats] = useState<EndpointData[]>([]);
   const [timeSeriesData, setTimeSeriesData] = useState<TimeSeriesData[]>([]);
-  const [requestLogs, setRequestLogs] = useState<RequestLog[]>([]);
-  const [systemStats, setSystemStats] = useState<any>({});
+  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [selectedApiKey, setSelectedApiKey] = useState<string>("all");
+  const [timeRange, setTimeRange] = useState<"1h" | "24h" | "7d" | "30d">(
+    "24h",
+  );
   const [loading, setLoading] = useState(true);
 
-  const fetchAllData = async () => {
+  useEffect(() => {
+    fetchApiKeys();
+  }, []);
+
+  useEffect(() => {
+    fetchAnalytics();
+    // Auto-refresh every 30 seconds
+    const interval = setInterval(fetchAnalytics, 30000);
+    return () => clearInterval(interval);
+  }, [selectedApiKey, timeRange]);
+
+  const fetchApiKeys = async () => {
+    try {
+      const response = await adminApi.getApiKeys();
+      setApiKeys(response.data.data || []);
+    } catch (error) {
+      console.error("Failed to fetch API keys", error);
+    }
+  };
+
+  const fetchAnalytics = async () => {
     try {
       setLoading(true);
 
-      // Fetch API keys
-      const keysResponse = await adminApi.getApiKeys();
-      const keys = keysResponse.data?.data || [];
-      setApiKeys(keys);
+      // Map timeRange to hours
+      const hoursMap: Record<string, number> = {
+        "1h": 1,
+        "24h": 24,
+        "7d": 168,
+        "30d": 720,
+      };
 
-      // Fetch analytics data from analytics service
-      const analyticsResponse = await analyticsApi.get("/api-keys");
-      const analyticsData = analyticsResponse.data?.data || [];
+      // Map timeRange to interval
+      const intervalMap: Record<string, string> = {
+        "1h": "minute",
+        "24h": "hour",
+        "7d": "hour",
+        "30d": "day",
+      };
 
-      // Transform analytics data
-      const keyStats: ApiKeyData[] = analyticsData.map((item: any) => ({
-        apiKey: item.api_key,
-        name:
-          keys.find((k: any) => k.apiKey === item.api_key)?.name ||
-          item.api_key,
+      const params = {
+        hours: hoursMap[timeRange],
+        interval: intervalMap[timeRange],
+        apiKey: selectedApiKey === "all" ? undefined : selectedApiKey,
+      };
+
+      // Fetch time-series data
+      const timeSeriesResponse = await analytics.getTimeSeriesData(params);
+      const rawData = timeSeriesResponse.data.data || [];
+
+      // Transform data for charts
+      const transformedData = rawData.map((item: any) => ({
+        timestamp: new Date(item.timestamp).toLocaleString("en-US", {
+          month: "short",
+          day: "numeric",
+          hour: timeRange === "1h" ? "2-digit" : undefined,
+          minute: timeRange === "1h" ? "2-digit" : undefined,
+        }),
         totalRequests: parseInt(item.total_requests) || 0,
-        rateLimited: parseInt(item.total_rate_limited) || 0,
-        avgResponseTime: parseFloat(item.avg_response_time_ms) || 0,
-        successRate: item.total_requests
-          ? ((item.total_requests - item.total_rate_limited) /
-              item.total_requests) *
-            100
-          : 100,
-        lastUsed: item.last_request_at || "Never",
+        successfulRequests: parseInt(item.successful_requests) || 0,
+        rateLimitedRequests: parseInt(item.rate_limited_requests) || 0,
+        avgResponseTime: parseFloat(item.avg_response_time) || 0,
       }));
-      setApiKeyStats(keyStats);
 
-      // Fetch endpoint analytics
-      const endpointResponse = await analyticsApi.get("/endpoints");
-      const endpointData = endpointResponse.data?.data || [];
-
-      const endpointStatsData: EndpointData[] = endpointData.map(
-        (item: any) => ({
-          endpoint: item.endpoint,
-          method: item.method,
-          totalRequests: parseInt(item.total_requests) || 0,
-          avgResponseTime: parseFloat(item.avg_response_time_ms) || 0,
-          successRate: 100, // Calculate from status codes if available
-        }),
-      );
-      setEndpointStats(endpointStatsData);
-
-      // Fetch time series data
-      const timeSeriesResponse = await analyticsApi.get(
-        `/time-series?hours=${timeRange}&interval=hour`,
-      );
-      const timeSeriesRaw = timeSeriesResponse.data?.data || [];
-
-      const timeSeriesFormatted: TimeSeriesData[] = timeSeriesRaw.map(
-        (item: any) => ({
-          timestamp: new Date(item.time_bucket).toLocaleTimeString("en-US", {
-            hour: "2-digit",
-            minute: "2-digit",
-          }),
-          requests: parseInt(item.request_count) || 0,
-          rateLimited: parseInt(item.rate_limited_count) || 0,
-          avgResponseTime: parseFloat(item.avg_response_time_ms) || 0,
-        }),
-      );
-      setTimeSeriesData(timeSeriesFormatted);
-
-      // Fetch system stats
-      const systemStatsResponse = await analyticsApi.get("/system-stats");
-      setSystemStats(systemStatsResponse.data?.data || {});
-
-      // Fetch recent request logs
-      const logsResponse = await analyticsApi.get(
-        `/logs?limit=50${selectedApiKey !== "all" ? `&apiKey=${selectedApiKey}` : ""}`,
-      );
-      const logs = logsResponse.data?.data || [];
-      setRequestLogs(logs);
-
-      setLoading(false);
-    } catch (err) {
-      console.error("Failed to fetch analytics data:", err);
+      setTimeSeriesData(transformedData);
+    } catch (error: any) {
+      showToast("Failed to fetch analytics data", "error");
+      console.error(error);
+    } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchAllData();
+  // Calculate summary metrics from time-series data
+  const calculateMetrics = () => {
+    if (timeSeriesData.length === 0) {
+      return {
+        totalRequests: 0,
+        successfulRequests: 0,
+        rateLimitedRequests: 0,
+        avgResponseTime: 0,
+        successRate: 0,
+      };
+    }
 
-    // Refresh every 10 seconds
-    const interval = setInterval(fetchAllData, 10000);
-
-    return () => clearInterval(interval);
-  }, [selectedApiKey, timeRange]);
-
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="text-center">
-            <Activity className="h-12 w-12 animate-spin text-gray-600 dark:text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600 dark:text-gray-400">
-              Loading analytics...
-            </p>
-          </div>
-        </div>
-      </DashboardLayout>
+    const totals = timeSeriesData.reduce(
+      (acc, item) => ({
+        total: acc.total + item.totalRequests,
+        successful: acc.successful + item.successfulRequests,
+        rateLimited: acc.rateLimited + item.rateLimitedRequests,
+        responseTime: acc.responseTime + item.avgResponseTime,
+      }),
+      { total: 0, successful: 0, rateLimited: 0, responseTime: 0 },
     );
-  }
+
+    const avgResponseTime = totals.responseTime / timeSeriesData.length;
+    const successRate =
+      totals.total > 0 ? (totals.successful / totals.total) * 100 : 0;
+
+    return {
+      totalRequests: totals.total,
+      successfulRequests: totals.successful,
+      rateLimitedRequests: totals.rateLimited,
+      avgResponseTime: Math.round(avgResponseTime),
+      successRate: Math.round(successRate * 10) / 10,
+    };
+  };
+
+  const metrics = calculateMetrics();
+
+  // Pie chart data for success vs rate-limited
+  const pieData = [
+    { name: "Successful", value: metrics.successfulRequests, color: "#10b981" },
+    {
+      name: "Rate Limited",
+      value: metrics.rateLimitedRequests,
+      color: "#ef4444",
+    },
+  ];
 
   return (
     <DashboardLayout>
-      <div className="p-8">
-        <div className="max-w-7xl mx-auto space-y-8">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-50">
-                API Usage Analytics
-              </h1>
-              <p className="text-gray-500 dark:text-gray-400 mt-2">
-                Detailed analytics and insights for API usage
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <Select value={timeRange} onValueChange={setTimeRange}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1">Last Hour</SelectItem>
-                  <SelectItem value="6">Last 6 Hours</SelectItem>
-                  <SelectItem value="24">Last 24 Hours</SelectItem>
-                  <SelectItem value="168">Last Week</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button onClick={fetchAllData} size="sm" variant="outline">
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </Button>
-            </div>
+      <div className="space-y-6">
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              API Usage Analytics
+            </h1>
+            <p className="text-gray-500 mt-1">
+              Monitor request patterns and rate limiting behavior
+            </p>
           </div>
+          <Badge variant="outline" className="text-sm">
+            Last updated: {new Date().toLocaleTimeString()}
+          </Badge>
+        </div>
 
-          {/* System Overview */}
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Total Requests
-                </CardTitle>
-                <Activity className="h-4 w-4 text-blue-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {(systemStats.total_requests || 0).toLocaleString()}
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  All time
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Rate Limited
-                </CardTitle>
-                <AlertCircle className="h-4 w-4 text-red-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-red-600 dark:text-red-400">
-                  {(systemStats.total_rate_limited || 0).toLocaleString()}
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  {systemStats.total_requests
-                    ? (
-                        (systemStats.total_rate_limited /
-                          systemStats.total_requests) *
-                        100
-                      ).toFixed(2)
-                    : 0}
-                  % blocked
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Avg Response Time
-                </CardTitle>
-                <Clock className="h-4 w-4 text-yellow-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {Math.round(systemStats.avg_response_time_ms || 0)}ms
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Across all endpoints
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  Active API Keys
-                </CardTitle>
-                <Key className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {apiKeys.filter((k) => k.status === "active").length}
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Out of {apiKeys.length} total
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Charts Row 1 */}
-          <div className="grid gap-6 lg:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Request Volume Over Time</CardTitle>
-                <CardDescription>
-                  Total and rate-limited requests
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={timeSeriesData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="timestamp" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Area
-                      type="monotone"
-                      dataKey="requests"
-                      stackId="1"
-                      stroke="#3b82f6"
-                      fill="#3b82f6"
-                      fillOpacity={0.6}
-                      name="Total Requests"
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="rateLimited"
-                      stackId="2"
-                      stroke="#ef4444"
-                      fill="#ef4444"
-                      fillOpacity={0.6}
-                      name="Rate Limited"
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Response Time Trend</CardTitle>
-                <CardDescription>
-                  Average response time per hour
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={timeSeriesData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="timestamp" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="avgResponseTime"
-                      stroke="#f59e0b"
-                      strokeWidth={2}
-                      name="Avg Response Time (ms)"
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* API Key Performance */}
-          <Card>
-            <CardHeader>
-              <CardTitle>API Key Performance</CardTitle>
-              <CardDescription>Usage statistics by API key</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={apiKeyStats.slice(0, 10)}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Legend />
-                    <Bar
-                      dataKey="totalRequests"
-                      fill="#3b82f6"
-                      name="Total Requests"
-                    />
-                    <Bar
-                      dataKey="rateLimited"
-                      fill="#ef4444"
-                      name="Rate Limited"
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>API Key Name</TableHead>
-                      <TableHead>Total Requests</TableHead>
-                      <TableHead>Rate Limited</TableHead>
-                      <TableHead>Success Rate</TableHead>
-                      <TableHead>Avg Response</TableHead>
-                      <TableHead>Last Used</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {apiKeyStats.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={6}
-                          className="text-center text-gray-500"
-                        >
-                          No data available
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      apiKeyStats.map((stat) => (
-                        <TableRow key={stat.apiKey}>
-                          <TableCell className="font-medium">
-                            {stat.name}
-                          </TableCell>
-                          <TableCell>
-                            {stat.totalRequests.toLocaleString()}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                stat.rateLimited > 0 ? "destructive" : "default"
-                              }
-                            >
-                              {stat.rateLimited.toLocaleString()}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {stat.successRate >= 90 ? (
-                                <CheckCircle className="h-4 w-4 text-green-500" />
-                              ) : stat.successRate >= 70 ? (
-                                <AlertCircle className="h-4 w-4 text-yellow-500" />
-                              ) : (
-                                <XCircle className="h-4 w-4 text-red-500" />
-                              )}
-                              {stat.successRate.toFixed(1)}%
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            {Math.round(stat.avgResponseTime)}ms
-                          </TableCell>
-                          <TableCell className="text-sm text-gray-500">
-                            {stat.lastUsed !== "Never"
-                              ? new Date(stat.lastUsed).toLocaleString()
-                              : "Never"}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+        {/* Filters */}
+        <Card className="p-4">
+          <div className="flex gap-4 items-center flex-wrap">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium">Time Range:</label>
+              <div className="flex gap-2">
+                {(["1h", "24h", "7d", "30d"] as const).map((range) => (
+                  <Button
+                    key={range}
+                    variant={timeRange === range ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setTimeRange(range)}
+                  >
+                    {range === "1h" && "Last Hour"}
+                    {range === "24h" && "Last 24 Hours"}
+                    {range === "7d" && "Last 7 Days"}
+                    {range === "30d" && "Last 30 Days"}
+                  </Button>
+                ))}
               </div>
-            </CardContent>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium">API Key:</label>
+              <select
+                value={selectedApiKey}
+                onChange={(e) => setSelectedApiKey(e.target.value)}
+                className="border border-gray-300 rounded px-3 py-1 text-sm"
+              >
+                <option value="all">All API Keys</option>
+                {apiKeys.map((key) => (
+                  <option key={key.id} value={key.apiKey}>
+                    {key.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={fetchAnalytics}
+              disabled={loading}
+            >
+              {loading ? "Refreshing..." : "Refresh"}
+            </Button>
+          </div>
+        </Card>
+
+        {/* Metric Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          <Card className="p-4">
+            <p className="text-xs text-gray-500 mb-1">Total Requests</p>
+            <p className="text-2xl font-bold text-gray-900">
+              {metrics.totalRequests.toLocaleString()}
+            </p>
           </Card>
-
-          {/* Endpoint Analytics */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Endpoint Analytics</CardTitle>
-              <CardDescription>Performance metrics by endpoint</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={endpointStats.slice(0, 10)}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="endpoint" />
-                    <YAxis yAxisId="left" orientation="left" stroke="#3b82f6" />
-                    <YAxis
-                      yAxisId="right"
-                      orientation="right"
-                      stroke="#f59e0b"
-                    />
-                    <Tooltip />
-                    <Legend />
-                    <Bar
-                      yAxisId="left"
-                      dataKey="totalRequests"
-                      fill="#3b82f6"
-                      name="Total Requests"
-                    />
-                    <Bar
-                      yAxisId="right"
-                      dataKey="avgResponseTime"
-                      fill="#f59e0b"
-                      name="Avg Response Time (ms)"
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Endpoint</TableHead>
-                      <TableHead>Method</TableHead>
-                      <TableHead>Total Requests</TableHead>
-                      <TableHead>Avg Response Time</TableHead>
-                      <TableHead>Trend</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {endpointStats.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={5}
-                          className="text-center text-gray-500"
-                        >
-                          No endpoint data available
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      endpointStats.map((stat, idx) => (
-                        <TableRow key={`${stat.endpoint}-${stat.method}`}>
-                          <TableCell className="font-mono text-sm">
-                            {stat.endpoint}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                stat.method === "GET"
-                                  ? "default"
-                                  : stat.method === "POST"
-                                    ? "secondary"
-                                    : "outline"
-                              }
-                            >
-                              {stat.method}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {stat.totalRequests.toLocaleString()}
-                          </TableCell>
-                          <TableCell>
-                            {Math.round(stat.avgResponseTime)}ms
-                          </TableCell>
-                          <TableCell>
-                            {Math.random() > 0.5 ? (
-                              <TrendingUp className="h-4 w-4 text-green-500" />
-                            ) : (
-                              <TrendingDown className="h-4 w-4 text-red-500" />
-                            )}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
+          <Card className="p-4">
+            <p className="text-xs text-gray-500 mb-1">Successful</p>
+            <p className="text-2xl font-bold text-green-600">
+              {metrics.successfulRequests.toLocaleString()}
+            </p>
           </Card>
-
-          {/* Recent Request Logs */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Request Logs</CardTitle>
-              <CardDescription>
-                Latest API requests across all services
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Timestamp</TableHead>
-                    <TableHead>API Key</TableHead>
-                    <TableHead>Method</TableHead>
-                    <TableHead>Endpoint</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Response Time</TableHead>
-                    <TableHead>Rate Limited</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {requestLogs.length === 0 ? (
-                    <TableRow>
-                      <TableCell
-                        colSpan={7}
-                        className="text-center text-gray-500"
-                      >
-                        No request logs available
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    requestLogs.slice(0, 20).map((log) => (
-                      <TableRow key={log.id}>
-                        <TableCell className="text-sm">
-                          {new Date(log.timestamp).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="font-mono text-xs">
-                          {log.apiKey.substring(0, 12)}...
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">{log.method}</Badge>
-                        </TableCell>
-                        <TableCell className="font-mono text-sm">
-                          {log.endpoint}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              log.statusCode < 300
-                                ? "success"
-                                : log.statusCode < 400
-                                  ? "default"
-                                  : log.statusCode === 429
-                                    ? "destructive"
-                                    : "secondary"
-                            }
-                          >
-                            {log.statusCode}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>{log.responseTimeMs}ms</TableCell>
-                        <TableCell>
-                          {log.rateLimitHit ? (
-                            <Badge variant="destructive">Yes</Badge>
-                          ) : (
-                            <Badge variant="success">No</Badge>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
+          <Card className="p-4">
+            <p className="text-xs text-gray-500 mb-1">Rate Limited</p>
+            <p className="text-2xl font-bold text-red-600">
+              {metrics.rateLimitedRequests.toLocaleString()}
+            </p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs text-gray-500 mb-1">Success Rate</p>
+            <p className="text-2xl font-bold text-blue-600">
+              {metrics.successRate}%
+            </p>
+          </Card>
+          <Card className="p-4">
+            <p className="text-xs text-gray-500 mb-1">Avg Response Time</p>
+            <p className="text-2xl font-bold text-purple-600">
+              {metrics.avgResponseTime}ms
+            </p>
           </Card>
         </div>
+
+        {/* Charts Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Requests Over Time - Line Chart */}
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold mb-4">Requests Over Time</h2>
+            {timeSeriesData.length === 0 ? (
+              <div className="h-80 flex items-center justify-center text-gray-500">
+                No data available for selected filters
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <LineChart data={timeSeriesData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="timestamp"
+                    tick={{ fontSize: 12 }}
+                    stroke="#6b7280"
+                  />
+                  <YAxis tick={{ fontSize: 12 }} stroke="#6b7280" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "6px",
+                    }}
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="totalRequests"
+                    stroke="#3b82f6"
+                    strokeWidth={2}
+                    name="Total Requests"
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="successfulRequests"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    name="Successful"
+                    dot={false}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="rateLimitedRequests"
+                    stroke="#ef4444"
+                    strokeWidth={2}
+                    name="Rate Limited"
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </Card>
+
+          {/* Success vs Rate Limited - Bar Chart */}
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold mb-4">
+              Success vs Rate Limited Breakdown
+            </h2>
+            {timeSeriesData.length === 0 ? (
+              <div className="h-80 flex items-center justify-center text-gray-500">
+                No data available for selected filters
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <BarChart data={timeSeriesData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="timestamp"
+                    tick={{ fontSize: 12 }}
+                    stroke="#6b7280"
+                  />
+                  <YAxis tick={{ fontSize: 12 }} stroke="#6b7280" />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "6px",
+                    }}
+                  />
+                  <Legend />
+                  <Bar
+                    dataKey="successfulRequests"
+                    fill="#10b981"
+                    name="Successful"
+                  />
+                  <Bar
+                    dataKey="rateLimitedRequests"
+                    fill="#ef4444"
+                    name="Rate Limited"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </Card>
+
+          {/* Response Time Over Time */}
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold mb-4">
+              Average Response Time
+            </h2>
+            {timeSeriesData.length === 0 ? (
+              <div className="h-80 flex items-center justify-center text-gray-500">
+                No data available for selected filters
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={320}>
+                <LineChart data={timeSeriesData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis
+                    dataKey="timestamp"
+                    tick={{ fontSize: 12 }}
+                    stroke="#6b7280"
+                  />
+                  <YAxis
+                    tick={{ fontSize: 12 }}
+                    stroke="#6b7280"
+                    label={{
+                      value: "ms",
+                      angle: -90,
+                      position: "insideLeft",
+                    }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#fff",
+                      border: "1px solid #e5e7eb",
+                      borderRadius: "6px",
+                    }}
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="avgResponseTime"
+                    stroke="#8b5cf6"
+                    strokeWidth={2}
+                    name="Avg Response Time (ms)"
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </Card>
+
+          {/* Success Rate Distribution - Pie Chart */}
+          <Card className="p-6">
+            <h2 className="text-lg font-semibold mb-4">Request Distribution</h2>
+            {metrics.totalRequests === 0 ? (
+              <div className="h-80 flex items-center justify-center text-gray-500">
+                No data available for selected filters
+              </div>
+            ) : (
+              <div className="flex flex-col items-center">
+                <ResponsiveContainer width="100%" height={280}>
+                  <PieChart>
+                    <Pie
+                      data={pieData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ name, percent }) =>
+                        `${name}: ${((percent || 0) * 100).toFixed(1)}%`
+                      }
+                      outerRadius={100}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {pieData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex gap-6 mt-4 text-sm">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-green-500 rounded"></div>
+                    <span>
+                      Successful: {metrics.successfulRequests.toLocaleString()}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-red-500 rounded"></div>
+                    <span>
+                      Rate Limited:{" "}
+                      {metrics.rateLimitedRequests.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* Info Box */}
+        <Card className="p-4 bg-blue-50 border-blue-100">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">💡</span>
+            <div className="flex-1">
+              <h3 className="font-semibold text-blue-900 mb-1">
+                Understanding Rate Limits
+              </h3>
+              <p className="text-sm text-blue-800">
+                When you see rate-limited requests (red bars/lines), it means
+                the API key has exceeded its allowed request rate. The system
+                uses a token bucket algorithm to enforce rate limits. Requests
+                are rejected when the bucket is empty and will be allowed again
+                once tokens refill.
+              </p>
+              <p className="text-sm text-blue-800 mt-2">
+                <strong>Try again after:</strong> Rate limits automatically
+                reset based on the refill rate configured for each API key.
+                Check the API Keys page for your specific rate limit
+                configuration.
+              </p>
+            </div>
+          </div>
+        </Card>
       </div>
     </DashboardLayout>
   );

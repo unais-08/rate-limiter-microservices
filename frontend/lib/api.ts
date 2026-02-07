@@ -1,4 +1,4 @@
-import axios, { AxiosRequestConfig } from "axios";
+import axios, { AxiosRequestConfig, AxiosError } from "axios";
 
 // Service endpoints from environment variables
 const ADMIN_API_URL =
@@ -45,6 +45,20 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
+
+// Error interceptor for better error handling
+api.interceptors.response.use(
+  (response) => response,
+  (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("authToken");
+        window.location.href = "/login";
+      }
+    }
+    return Promise.reject(error);
+  },
+);
 
 // API Methods
 export const adminApi = {
@@ -148,5 +162,4 @@ export const analytics = {
   }) => analyticsApi.get("/api/v1/analytics/logs", { params }),
 };
 
-export { analyticsApi };
 export default api;
