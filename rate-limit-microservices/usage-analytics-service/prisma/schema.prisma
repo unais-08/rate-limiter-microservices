@@ -12,6 +12,7 @@ datasource db {
 
 model RequestLog {
   id              Int       @id @default(autoincrement())
+  userId          String    @map("user_id") @db.VarChar(255)
   apiKey          String    @map("api_key") @db.VarChar(255)
   endpoint        String    @db.VarChar(500)
   method          String    @db.VarChar(10)
@@ -20,7 +21,9 @@ model RequestLog {
   rateLimitHit    Boolean   @default(false) @map("rate_limit_hit")
   timestamp       DateTime  @default(now())
   
+  @@index([userId])
   @@index([apiKey])
+  @@index([userId, apiKey])
   @@index([endpoint])
   @@index([timestamp])
   @@index([rateLimitHit])
@@ -29,7 +32,8 @@ model RequestLog {
 
 model ApiKeyMetric {
   id                  Int       @id @default(autoincrement())
-  apiKey              String    @unique @map("api_key") @db.VarChar(255)
+  userId              String    @map("user_id") @db.VarChar(255)
+  apiKey              String    @map("api_key") @db.VarChar(255)
   name                String?   @db.VarChar(255)
   totalRequests       Int       @default(0) @map("total_requests")
   totalRateLimited    Int       @default(0) @map("total_rate_limited")
@@ -38,11 +42,14 @@ model ApiKeyMetric {
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
   
+  @@unique([userId, apiKey])
+  @@index([userId])
   @@map("api_key_metrics")
 }
 
 model EndpointMetric {
   id                  Int       @id @default(autoincrement())
+  userId              String    @map("user_id") @db.VarChar(255)
   endpoint            String    @db.VarChar(500)
   method              String    @db.VarChar(10)
   totalRequests       Int       @default(0) @map("total_requests")
@@ -51,6 +58,7 @@ model EndpointMetric {
   createdAt           DateTime  @default(now()) @map("created_at")
   updatedAt           DateTime  @updatedAt @map("updated_at")
   
-  @@unique([endpoint, method])
+  @@unique([userId, endpoint, method])
+  @@index([userId])
   @@map("endpoint_metrics")
 }

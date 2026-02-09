@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import analyticsRoutes from "./routes/analytics.routes.js";
+import { extractUserId } from "./middleware/auth.js";
 import { notFoundHandler, errorHandler } from "./middleware/errorHandler.js";
 import prisma from "./config/database.js";
 import Logger from "./utils/logger.js";
@@ -35,8 +36,8 @@ const createApp = async (): Promise<Express> => {
     });
   });
 
-  // Routes
-  app.use("/api/v1/analytics", analyticsRoutes);
+  // Routes - apply auth middleware to extract userId
+  app.use("/api/v1/analytics", extractUserId, analyticsRoutes);
 
   // 404 handler
   app.use(notFoundHandler);

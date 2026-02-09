@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { adminApi, analytics } from "@/lib/api";
+import { adminApi } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { showToast } from "@/lib/toast";
@@ -88,10 +88,7 @@ export default function OverviewPage() {
 
       // Fetch time-series for last 24 hours
       try {
-        const timeSeriesResponse = await analytics.getTimeSeriesData({
-          hours: 24,
-          interval: "hour",
-        });
+        const timeSeriesResponse = await adminApi.getTimeSeries(24, "hour");
 
         if (!timeSeriesResponse?.data?.data) {
           throw new Error("Invalid time series response format");

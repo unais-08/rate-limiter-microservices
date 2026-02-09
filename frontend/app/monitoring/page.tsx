@@ -15,7 +15,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { adminApi, analytics } from "@/lib/api";
+import { adminApi } from "@/lib/api";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -95,18 +95,24 @@ export default function MonitoringPage() {
 
       // Fetch top rate-limited keys
       try {
-        const rateLimitedResponse = await analytics.getTopRateLimitedKeys(10);
+        const rateLimitedResponse = await adminApi.getTopRateLimited(10);
         const data = rateLimitedResponse.data.data || [];
 
         const transformedData = data.map((item: any) => ({
-          apiKey: item.api_key,
-          name: item.name || item.api_key.substring(0, 16) + "...",
-          totalRateLimited: parseInt(item.total_rate_limited) || 0,
-          totalRequests: parseInt(item.total_requests) || 0,
+          apiKey: item.api_key || item.apiKey,
+          name:
+            item.name ||
+            (item.api_key || item.apiKey || "").substring(0, 16) + "...",
+          totalRateLimited:
+            parseInt(item.total_rate_limited || item.totalRateLimited) || 0,
+          totalRequests:
+            parseInt(item.total_requests || item.totalRequests) || 0,
           rateLimitRate:
-            item.total_requests > 0
+            (item.total_requests || item.totalRequests) > 0
               ? Math.round(
-                  (item.total_rate_limited / item.total_requests) * 100,
+                  ((item.total_rate_limited || item.totalRateLimited) /
+                    (item.total_requests || item.totalRequests)) *
+                    100,
                 )
               : 0,
         }));
@@ -118,7 +124,7 @@ export default function MonitoringPage() {
 
       // Fetch endpoint metrics
       try {
-        const endpointResponse = await analytics.getEndpointAnalytics();
+        const endpointResponse = await adminApi.getEndpointAnalytics();
         const data = endpointResponse.data.data || [];
 
         console.log("Endpoint Metrics:", data);
@@ -129,11 +135,12 @@ export default function MonitoringPage() {
             id: item.id,
             endpoint: item.endpoint,
             method: item.method,
-            requests: parseInt(item.totalRequests) || 0,
+            requests: parseInt(item.totalRequests || item.total_requests) || 0,
             avgResponseTime: Math.round(
-              parseFloat(item.avgResponseTimeMs) || 0,
+              parseFloat(item.avgResponseTimeMs || item.avg_response_time_ms) ||
+                0,
             ),
-            lastRequestAt: item.lastRequestAt,
+            lastRequestAt: item.lastRequestAt || item.last_request_at,
           }))
           .sort((a: any, b: any) => b.requests - a.requests)
           .slice(0, 10); // Top 10 endpoints
@@ -145,7 +152,7 @@ export default function MonitoringPage() {
 
       // Fetch system stats
       try {
-        const statsResponse = await analytics.getSystemStats();
+        const statsResponse = await adminApi.getSystemMetrics();
         setSystemStats(statsResponse.data.data);
       } catch (error) {
         console.error("Failed to fetch system stats", error);
@@ -283,8 +290,6 @@ export default function MonitoringPage() {
             </button>
           </div>
         </div>
-
-      
 
         {/* Top Rate-Limited API Keys */}
         <Card className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">

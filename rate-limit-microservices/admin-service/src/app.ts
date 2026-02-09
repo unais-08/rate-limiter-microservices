@@ -5,7 +5,13 @@ import morgan from "morgan";
 import apiKeyRoutes from "./routes/apiKey.routes.js";
 import monitoringRoutes from "./routes/monitoring.routes.js";
 import internalRoutes from "./routes/internal.route.js";
-import { authMiddleware, login } from "./middleware/auth.js";
+import backendEndpointRoutes from "./routes/backendEndpoint.routes.js";
+import {
+  authMiddleware,
+  register,
+  login,
+  getCurrentUser,
+} from "./middleware/auth.js";
 import { notFoundHandler, errorHandler } from "./middleware/errorHandler.js";
 import redisClient from "./config/redis.js";
 import prisma from "./config/database.js";
@@ -35,8 +41,12 @@ const createApp = async (): Promise<Express> => {
   app.use(express.json());
   app.use(morgan("dev"));
 
-  // Public routes
-  app.post("/api/v1/admin/login", login);
+  // Public routes (authentication)
+  app.post("/api/v1/auth/register", register);
+  app.post("/api/v1/auth/login", login);
+
+  // Get current user (requires auth)
+  app.get("/api/v1/auth/me", authMiddleware, getCurrentUser);
 
   app.get("/health", (_req: Request, res: Response) => {
     res.json({
@@ -52,6 +62,7 @@ const createApp = async (): Promise<Express> => {
   app.use("/api/v1/internal", internalRoutes);
   // Protected routes (require authentication)
   app.use("/api/v1/admin", authMiddleware, apiKeyRoutes);
+  app.use("/api/v1/admin/endpoints", authMiddleware, backendEndpointRoutes);
   app.use("/api/v1/admin/monitoring", authMiddleware, monitoringRoutes);
 
   // 404 handler

@@ -26,11 +26,21 @@ class MonitoringController {
   }
 
   /**
-   * Get system metrics
+   * Get system metrics (scoped to user)
    */
-  async getSystemMetrics(_req: Request, res: Response): Promise<void> {
+  async getSystemMetrics(req: Request, res: Response): Promise<void> {
     try {
-      const metrics = await monitoringService.getSystemMetrics();
+      if (!req.tenantContext) {
+        res.status(401).json({
+          success: false,
+          error: "Not authenticated",
+        });
+        return;
+      }
+
+      const metrics = await monitoringService.getSystemMetrics(
+        req.tenantContext.userId,
+      );
 
       res.json({
         success: true,
@@ -46,11 +56,21 @@ class MonitoringController {
   }
 
   /**
-   * Get dashboard data
+   * Get dashboard data (scoped to user)
    */
-  async getDashboard(_req: Request, res: Response): Promise<void> {
+  async getDashboard(req: Request, res: Response): Promise<void> {
     try {
-      const dashboard = await monitoringService.getDashboardData();
+      if (!req.tenantContext) {
+        res.status(401).json({
+          success: false,
+          error: "Not authenticated",
+        });
+        return;
+      }
+
+      const dashboard = await monitoringService.getDashboardData(
+        req.tenantContext.userId,
+      );
 
       res.json({
         success: true,
@@ -66,15 +86,25 @@ class MonitoringController {
   }
 
   /**
-   * Get time-series data
+   * Get time-series data (scoped to user)
    */
   async getTimeSeries(req: Request, res: Response): Promise<void> {
     try {
-      const { hours = "24", interval = "hour" } = req.query;
+      if (!req.tenantContext) {
+        res.status(401).json({
+          success: false,
+          error: "Not authenticated",
+        });
+        return;
+      }
+
+      const { hours = "24", interval = "hour", apiKey } = req.query;
 
       const data = await monitoringService.getTimeSeriesData(
+        req.tenantContext.userId,
         parseInt(hours as string, 10),
         interval as string,
+        apiKey as string | undefined,
       );
 
       res.json({
@@ -91,11 +121,21 @@ class MonitoringController {
   }
 
   /**
-   * Get endpoint analytics
+   * Get endpoint analytics (scoped to user)
    */
-  async getEndpointAnalytics(_req: Request, res: Response): Promise<void> {
+  async getEndpointAnalytics(req: Request, res: Response): Promise<void> {
     try {
-      const data = await monitoringService.getEndpointAnalytics();
+      if (!req.tenantContext) {
+        res.status(401).json({
+          success: false,
+          error: "Not authenticated",
+        });
+        return;
+      }
+
+      const data = await monitoringService.getEndpointAnalytics(
+        req.tenantContext.userId,
+      );
 
       res.json({
         success: true,
@@ -111,13 +151,22 @@ class MonitoringController {
   }
 
   /**
-   * Get top rate-limited keys
+   * Get top rate-limited keys (scoped to user)
    */
   async getTopRateLimited(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.tenantContext) {
+        res.status(401).json({
+          success: false,
+          error: "Not authenticated",
+        });
+        return;
+      }
+
       const { limit = "10" } = req.query;
 
       const data = await monitoringService.getTopRateLimitedKeys(
+        req.tenantContext.userId,
         parseInt(limit as string, 10),
       );
 

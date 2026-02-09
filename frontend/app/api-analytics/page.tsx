@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { analytics, adminApi } from "@/lib/api";
+import { adminApi } from "@/lib/api";
 import { ApiKey, TimeSeriesData } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -95,19 +95,28 @@ export default function ApiUsagePage() {
       };
 
       // Fetch time-series data
-      const timeSeriesResponse = await analytics.getTimeSeriesData(params);
+      const timeSeriesResponse = await adminApi.getTimeSeries(
+        hoursMap[timeRange],
+        intervalMap[timeRange],
+      );
       const rawData = timeSeriesResponse.data.data || [];
 
       console.log("Time series data:", rawData);
       const transformedData = rawData.map((item: any) => ({
-        timestamp: new Date(item.time_bucket).toLocaleString("en-US", {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-        totalRequests: item.request_count || 0,
-        successfulRequests: item.request_count - item.rate_limited_count || 0,
-        rateLimitedRequests: item.rate_limited_count || 0,
-        avgResponseTime: item.avg_response_time || 0,
+        timestamp: new Date(item.time_bucket || item.timeBucket).toLocaleString(
+          "en-US",
+          {
+            hour: "2-digit",
+            minute: "2-digit",
+          },
+        ),
+        totalRequests: item.request_count || item.requestCount || 0,
+        successfulRequests:
+          (item.request_count || item.requestCount || 0) -
+          (item.rate_limited_count || item.rateLimitedCount || 0),
+        rateLimitedRequests:
+          item.rate_limited_count || item.rateLimitedCount || 0,
+        avgResponseTime: item.avg_response_time || item.avgResponseTime || 0,
       }));
       console.log("Transformed time series data:", transformedData);
 
@@ -204,7 +213,7 @@ export default function ApiUsagePage() {
         <Card className="p-5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
           <div className="flex gap-4 items-center flex-wrap">
             {/* <div className="flex items-center gap-3"> */}
-              {/* <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {/* <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                 Time Range:
               </label>
               <div className="flex gap-2">

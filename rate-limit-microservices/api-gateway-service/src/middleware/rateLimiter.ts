@@ -60,19 +60,26 @@ export const rateLimitMiddleware: AsyncRouteHandler = async (
 
       // Log to analytics BEFORE sending response
       const responseTimeMs = Date.now() - (req.startTime || Date.now());
-      const analyticsData: AnalyticsRequestData = {
-        apiKey: apiKey,
-        endpoint: req.originalUrl || req.url,
-        method: req.method,
-        statusCode: 429,
-        responseTimeMs,
-        rateLimitHit: true,
-      };
+      const userId = req.apiKeyMetadata?.userId || "unknown";
 
-      // Send to analytics (async, don't wait)
-      analyticsClient.logRequest(analyticsData).catch(() => {
-        // Silently fail - analytics shouldn't block response
-      });
+      // Only log if we have a valid userId
+      if (userId !== "unknown") {
+        const analyticsData: AnalyticsRequestData = {
+          userId,
+          apiKey: apiKey,
+          name: req.apiKeyMetadata?.metadata?.name || null,
+          endpoint: req.originalUrl || req.url,
+          method: req.method,
+          statusCode: 429,
+          responseTimeMs,
+          rateLimitHit: true,
+        };
+
+        // Send to analytics (async, don't wait)
+        analyticsClient.logRequest(analyticsData).catch(() => {
+          // Silently fail - analytics shouldn't block response
+        });
+      }
 
       res.status(429).json({
         success: false,

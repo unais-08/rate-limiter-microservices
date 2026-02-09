@@ -10,25 +10,28 @@ class ApiKeyController {
    */
   async createApiKey(req: Request, res: Response): Promise<void> {
     try {
-      const {
-        name,
-        userId,
-        tier,
-        tokensPerWindow,
-        refillRate,
-        maxBurst,
-        description,
-      } = req.body;
+      if (!req.tenantContext) {
+        res.status(401).json({
+          success: false,
+          error: "Not authenticated",
+        });
+        return;
+      }
 
-      const result = await apiKeyService.createApiKey({
-        name,
-        userId,
-        tier,
-        tokensPerWindow,
-        refillRate,
-        maxBurst,
-        description,
-      });
+      const { name, tier, tokensPerWindow, refillRate, maxBurst, description } =
+        req.body;
+
+      const result = await apiKeyService.createApiKey(
+        {
+          name,
+          tier,
+          tokensPerWindow,
+          refillRate,
+          maxBurst,
+          description,
+        },
+        req.tenantContext.userId,
+      );
 
       res.status(201).json({
         success: true,
@@ -44,11 +47,19 @@ class ApiKeyController {
   }
 
   /**
-   * List all API keys
+   * List all API keys for the authenticated user
    */
-  async listApiKeys(_req: Request, res: Response): Promise<void> {
+  async listApiKeys(req: Request, res: Response): Promise<void> {
     try {
-      const keys = await apiKeyService.listApiKeys();
+      if (!req.tenantContext) {
+        res.status(401).json({
+          success: false,
+          error: "Not authenticated",
+        });
+        return;
+      }
+
+      const keys = await apiKeyService.listApiKeys(req.tenantContext.userId);
 
       res.json({
         success: true,
@@ -69,9 +80,20 @@ class ApiKeyController {
    */
   async getApiKey(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.tenantContext) {
+        res.status(401).json({
+          success: false,
+          error: "Not authenticated",
+        });
+        return;
+      }
+
       const { apiKey } = req.params;
 
-      const result = await apiKeyService.getApiKey(apiKey);
+      const result = await apiKeyService.getApiKey(
+        apiKey,
+        req.tenantContext.userId,
+      );
 
       if (!result) {
         res.status(404).json({
@@ -99,10 +121,22 @@ class ApiKeyController {
    */
   async updateApiKey(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.tenantContext) {
+        res.status(401).json({
+          success: false,
+          error: "Not authenticated",
+        });
+        return;
+      }
+
       const { apiKey } = req.params;
       const updates = req.body;
 
-      const result = await apiKeyService.updateApiKey(apiKey, updates);
+      const result = await apiKeyService.updateApiKey(
+        apiKey,
+        req.tenantContext.userId,
+        updates,
+      );
 
       res.json({
         success: true,
@@ -111,7 +145,7 @@ class ApiKeyController {
     } catch (error) {
       logger.error("Error updating API key", { error });
 
-      if (error instanceof Error && error.message === "API key not found") {
+      if (error instanceof Error && error.message.includes("not found")) {
         res.status(404).json({
           success: false,
           error: error.message,
@@ -131,9 +165,20 @@ class ApiKeyController {
    */
   async deleteApiKey(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.tenantContext) {
+        res.status(401).json({
+          success: false,
+          error: "Not authenticated",
+        });
+        return;
+      }
+
       const { apiKey } = req.params;
 
-      const result = await apiKeyService.deleteApiKey(apiKey);
+      const result = await apiKeyService.deleteApiKey(
+        apiKey,
+        req.tenantContext.userId,
+      );
 
       res.json({
         success: true,
@@ -142,10 +187,14 @@ class ApiKeyController {
     } catch (error) {
       logger.error("Error deleting API key", { error });
 
-      if (error instanceof Error && error.message === "API key not found") {
+      if (
+        error instanceof Error &&
+        (error.message === "API key not found" ||
+          error.message.includes("access denied"))
+      ) {
         res.status(404).json({
           success: false,
-          error: error.message,
+          error: "API key not found or access denied",
         });
         return;
       }
@@ -162,9 +211,20 @@ class ApiKeyController {
    */
   async resetTokens(req: Request, res: Response): Promise<void> {
     try {
+      if (!req.tenantContext) {
+        res.status(401).json({
+          success: false,
+          error: "Not authenticated",
+        });
+        return;
+      }
+
       const { apiKey } = req.params;
 
-      const result = await apiKeyService.resetTokens(apiKey);
+      const result = await apiKeyService.resetTokens(
+        apiKey,
+        req.tenantContext.userId,
+      );
 
       res.json({
         success: true,
@@ -173,10 +233,14 @@ class ApiKeyController {
     } catch (error) {
       logger.error("Error resetting tokens", { error });
 
-      if (error instanceof Error && error.message === "API key not found") {
+      if (
+        error instanceof Error &&
+        (error.message === "API key not found" ||
+          error.message.includes("access denied"))
+      ) {
         res.status(404).json({
           success: false,
-          error: error.message,
+          error: "API key not found or access denied",
         });
         return;
       }
@@ -191,9 +255,19 @@ class ApiKeyController {
   /**
    * Get API key statistics
    */
-  async getStats(_req: Request, res: Response): Promise<void> {
+  async getStats(req: Request, res: Response): Promise<void> {
     try {
-      const stats = await apiKeyService.getApiKeyStats();
+      if (!req.tenantContext) {
+        res.status(401).json({
+          success: false,
+          error: "Not authenticated",
+        });
+        return;
+      }
+
+      const stats = await apiKeyService.getApiKeyStats(
+        req.tenantContext.userId,
+      );
 
       res.json({
         success: true,

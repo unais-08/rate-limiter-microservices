@@ -11,6 +11,7 @@ class AnalyticsService {
    */
   async logRequest(requestData: LogRequest) {
     const {
+      userId,
       apiKey,
       endpoint,
       method,
@@ -22,6 +23,7 @@ class AnalyticsService {
     try {
       const result = await prisma.requestLog.create({
         data: {
+          userId,
           apiKey,
           endpoint,
           method,
@@ -51,6 +53,7 @@ class AnalyticsService {
    */
   async updateMetrics(requestData: LogRequest): Promise<void> {
     const {
+      userId,
       apiKey,
       endpoint,
       method,
@@ -61,7 +64,12 @@ class AnalyticsService {
     try {
       // Update API key metrics using upsert
       const existingMetric = await prisma.apiKeyMetric.findUnique({
-        where: { apiKey },
+        where: {
+          userId_apiKey: {
+            userId,
+            apiKey,
+          },
+        },
       });
 
       if (existingMetric) {
@@ -73,7 +81,12 @@ class AnalyticsService {
           newTotalRequests;
 
         await prisma.apiKeyMetric.update({
-          where: { apiKey },
+          where: {
+            userId_apiKey: {
+              userId,
+              apiKey,
+            },
+          },
           data: {
             totalRequests: newTotalRequests,
             totalRateLimited: rateLimitHit
@@ -86,6 +99,7 @@ class AnalyticsService {
       } else {
         await prisma.apiKeyMetric.create({
           data: {
+            userId,
             apiKey,
             name: requestData.name || null,
             totalRequests: 1,
@@ -99,7 +113,8 @@ class AnalyticsService {
       // Update endpoint metrics
       const existingEndpoint = await prisma.endpointMetric.findUnique({
         where: {
-          endpoint_method: {
+          userId_endpoint_method: {
+            userId,
             endpoint,
             method,
           },
@@ -115,7 +130,8 @@ class AnalyticsService {
 
         await prisma.endpointMetric.update({
           where: {
-            endpoint_method: {
+            userId_endpoint_method: {
+              userId,
               endpoint,
               method,
             },
@@ -129,6 +145,7 @@ class AnalyticsService {
       } else {
         await prisma.endpointMetric.create({
           data: {
+            userId,
             endpoint,
             method,
             totalRequests: 1,
@@ -143,9 +160,10 @@ class AnalyticsService {
   }
 
   /**
-   * Get analytics for a specific API key
+   * Get analytics for a specific API key (user-scoped)
    */
   async getApiKeyAnalytics(
+    userId: string,
     apiKey: string,
     options: { limit?: number; offset?: number } = {},
   ) {
@@ -154,12 +172,17 @@ class AnalyticsService {
     try {
       // Get aggregated metrics
       const metrics = await prisma.apiKeyMetric.findUnique({
-        where: { apiKey },
+        where: {
+          userId_apiKey: {
+            userId,
+            apiKey,
+          },
+        },
       });
 
       // Get recent requests
       const recentRequests = await prisma.requestLog.findMany({
-        where: { apiKey },
+        where: { userId, apiKey },
         orderBy: { timestamp: "desc" },
         take: limit,
         skip: offset,
@@ -167,11 +190,11 @@ class AnalyticsService {
 
       // Get rate limit stats
       const totalCount = await prisma.requestLog.count({
-        where: { apiKey },
+        where: { userId, apiKey },
       });
 
       const rateLimitedCount = await prisma.requestLog.count({
-        where: { apiKey, rateLimitHit: true },
+        where: { userId, apiKey, rateLimitHit: true },
       });
 
       const rateLimitPercentage =
@@ -198,15 +221,17 @@ class AnalyticsService {
   }
 
   /**
-   * Get analytics for all API keys
+   * Get analytics for all API keys (user-scoped)
    */
   async getAllApiKeysAnalytics(
+    userId: string,
     options: { limit?: number; offset?: number } = {},
   ) {
     const { limit = 50, offset = 0 } = options;
 
     try {
       const results = await prisma.apiKeyMetric.findMany({
+        where: { userId },
         orderBy: { totalRequests: "desc" },
         take: limit,
         skip: offset,
@@ -223,15 +248,17 @@ class AnalyticsService {
   }
 
   /**
-   * Get endpoint analytics
+   * Get endpoint analytics (user-scoped)
    */
   async getEndpointAnalytics(
+    userId: string,
     options: { limit?: number; offset?: number } = {},
   ) {
     const { limit = 50, offset = 0 } = options;
 
     try {
       const results = await prisma.endpointMetric.findMany({
+        where: { userId },
         orderBy: { totalRequests: "desc" },
         take: limit,
         skip: offset,
@@ -248,27 +275,55 @@ class AnalyticsService {
   }
 
   /**
-   * Get time-series data (requests per time bucket)
+   * Get time-series data (requests per time bucket) - user-scoped
    */
   async getTimeSeriesData(
+    userId: string,
     options: { hours?: number; interval?: string; apiKey?: string | null } = {},
   ) {
     const { hours = 24, interval = "hour", apiKey = null } = options;
 
+    // Validate interval to prevent SQL injection (whitelist approach)
+    const validIntervals = ["minute", "hour", "day", "week", "month"];
+    const safeInterval = validIntervals.includes(interval) ? interval : "hour";
+
+    // Validate hours is a positive number
+    const safeHours = Math.max(
+      1,
+      Math.min(parseInt(String(hours), 10) || 24, 8760),
+    ); // Max 1 year
+
     try {
-      // Use raw SQL for time-series aggregation
-      const result = (await prisma.$queryRawUnsafe(`
-        SELECT 
-          DATE_TRUNC('${interval}', timestamp) as time_bucket,
-          COUNT(*)::int as request_count,
-          COUNT(*) FILTER (WHERE rate_limit_hit = TRUE)::int as rate_limited_count,
-          AVG(response_time_ms)::int as avg_response_time
-        FROM request_logs
-        WHERE timestamp > NOW() - INTERVAL '${hours} hours'
-        ${apiKey ? `AND api_key = '${apiKey}'` : ""}
-        GROUP BY time_bucket
-        ORDER BY time_bucket
-      `)) as TimeSeriesDataPoint[];
+      // Use Prisma's safe parameterized query
+      let result;
+      if (apiKey) {
+        result = await prisma.$queryRaw<TimeSeriesDataPoint[]>`
+          SELECT 
+            DATE_TRUNC(${safeInterval}, timestamp) as time_bucket,
+            COUNT(*)::int as request_count,
+            COUNT(*) FILTER (WHERE rate_limit_hit = TRUE)::int as rate_limited_count,
+            COALESCE(AVG(response_time_ms)::int, 0) as avg_response_time
+          FROM request_logs
+          WHERE timestamp > NOW() - CAST(${safeHours + " hours"} AS INTERVAL)
+          AND user_id = ${userId}
+          AND api_key = ${apiKey}
+          GROUP BY time_bucket
+          ORDER BY time_bucket
+        `;
+      } else {
+        result = await prisma.$queryRaw<TimeSeriesDataPoint[]>`
+          SELECT 
+            DATE_TRUNC(${safeInterval}, timestamp) as time_bucket,
+            COUNT(*)::int as request_count,
+            COUNT(*) FILTER (WHERE rate_limit_hit = TRUE)::int as rate_limited_count,
+            COALESCE(AVG(response_time_ms)::int, 0) as avg_response_time
+          FROM request_logs
+          WHERE timestamp > NOW() - CAST(${safeHours + " hours"} AS INTERVAL)
+          AND user_id = ${userId}
+          GROUP BY time_bucket
+          ORDER BY time_bucket
+        `;
+      }
 
       return result;
     } catch (error) {
@@ -281,12 +336,13 @@ class AnalyticsService {
   }
 
   /**
-   * Get top rate-limited API keys
+   * Get top rate-limited API keys (user-scoped)
    */
-  async getTopRateLimitedKeys(limit: number = 10) {
+  async getTopRateLimitedKeys(userId: string, limit: number = 10) {
     try {
       const results = await prisma.apiKeyMetric.findMany({
         where: {
+          userId,
           totalRateLimited: {
             gt: 0,
           },
@@ -325,9 +381,9 @@ class AnalyticsService {
   }
 
   /**
-   * Get overall system statistics
+   * Get overall system statistics (user-scoped)
    */
-  async getSystemStats(): Promise<SystemStats> {
+  async getSystemStats(userId: string): Promise<SystemStats> {
     try {
       const [
         totalRequests,
@@ -336,18 +392,21 @@ class AnalyticsService {
         uniqueApiKeys,
         timestamps,
       ] = await Promise.all([
-        prisma.requestLog.count(),
-        prisma.requestLog.count({ where: { rateLimitHit: true } }),
+        prisma.requestLog.count({ where: { userId } }),
+        prisma.requestLog.count({ where: { userId, rateLimitHit: true } }),
         prisma.requestLog.aggregate({
+          where: { userId },
           _avg: {
             responseTimeMs: true,
           },
         }),
         prisma.requestLog.findMany({
+          where: { userId },
           distinct: ["apiKey"],
           select: { apiKey: true },
         }),
         prisma.requestLog.aggregate({
+          where: { userId },
           _min: {
             timestamp: true,
           },
@@ -368,6 +427,50 @@ class AnalyticsService {
     } catch (error) {
       console.error(
         "❌ Error getting system stats:",
+        error instanceof Error ? error.message : error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Delete all analytics data for a specific API key
+   * Called when an API key is deleted from the admin service
+   */
+  async deleteApiKeyData(
+    userId: string,
+    apiKey: string,
+  ): Promise<{ deletedLogs: number; deletedMetrics: number }> {
+    try {
+      console.log(`🗑️ Deleting analytics data for API key: ${apiKey}`);
+
+      // Delete request logs for this API key
+      const deletedLogs = await prisma.requestLog.deleteMany({
+        where: {
+          userId,
+          apiKey,
+        },
+      });
+
+      // Delete API key metrics
+      const deletedMetrics = await prisma.apiKeyMetric.deleteMany({
+        where: {
+          userId,
+          apiKey,
+        },
+      });
+
+      console.log(
+        `✅ Deleted ${deletedLogs.count} logs and ${deletedMetrics.count} metrics for API key: ${apiKey}`,
+      );
+
+      return {
+        deletedLogs: deletedLogs.count,
+        deletedMetrics: deletedMetrics.count,
+      };
+    } catch (error) {
+      console.error(
+        "❌ Error deleting API key data:",
         error instanceof Error ? error.message : error,
       );
       throw error;

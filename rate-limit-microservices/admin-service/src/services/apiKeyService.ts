@@ -28,10 +28,10 @@ class ApiKeyService {
    */
   async createApiKey(
     options: CreateApiKeyOptions = {},
+    userId: string,
   ): Promise<ApiKeyResponse> {
     const {
       name = "Unnamed Key",
-      userId = null,
       tier = "free",
       tokensPerWindow = config.defaultTokens,
       refillRate = config.refillRate,
@@ -65,7 +65,7 @@ class ApiKeyService {
 
       const metadata = {
         name: String(name),
-        userId: String(userId || ""),
+        userId: String(userId),
         tier: String(tier),
         tokensPerWindow: String(tokensPerWindow),
         refillRate: String(refillRate),
@@ -79,6 +79,7 @@ class ApiKeyService {
       await redis.set(`apikey:${apiKey}:tokens`, tokensPerWindow);
       await redis.set(`apikey:${apiKey}:lastRefill`, Date.now().toString());
       await redis.sAdd("apikeys:all", apiKey);
+      await redis.sAdd(`user:${userId}:apikeys`, apiKey);
       await redis.expire(`apikey:${apiKey}:metadata`, 900); // 15 minutes
 
       return {
@@ -176,11 +177,12 @@ class ApiKeyService {
   }
 
   /**
-   * List all API keys
+   * List all API keys for a specific user
    */
-  async listApiKeys(): Promise<ApiKeyResponse[]> {
+  async listApiKeys(userId: string): Promise<ApiKeyResponse[]> {
     try {
       const dbRecords = await prisma.apiKey.findMany({
+        where: { userId },
         orderBy: { createdAt: "desc" },
       });
 
@@ -219,12 +221,18 @@ class ApiKeyService {
   }
 
   /**
-   * Get details of a specific API key
+   * Get details of a specific API key (with user ownership check)
    */
-  async getApiKey(apiKey: string): Promise<ApiKeyResponse | null> {
+  async getApiKey(
+    apiKey: string,
+    userId: string,
+  ): Promise<ApiKeyResponse | null> {
     try {
-      const dbRecord = await prisma.apiKey.findUnique({
-        where: { key: apiKey },
+      const dbRecord = await prisma.apiKey.findFirst({
+        where: {
+          key: apiKey,
+          userId,
+        },
       });
 
       if (!dbRecord) {
@@ -263,20 +271,24 @@ class ApiKeyService {
   }
 
   /**
-   * Update API key configuration
+   * Update API key configuration (with user ownership check)
    */
   async updateApiKey(
     apiKey: string,
+    userId: string,
     updates: UpdateApiKeyOptions = {},
   ): Promise<ApiKeyResponse> {
     try {
-      // Check if key exists
-      const existing = await prisma.apiKey.findUnique({
-        where: { key: apiKey },
+      // Check if key exists and belongs to user
+      const existing = await prisma.apiKey.findFirst({
+        where: {
+          key: apiKey,
+          userId,
+        },
       });
 
       if (!existing) {
-        throw new Error("API key not found");
+        throw new Error("API key not found or access denied");
       }
 
       // Update PostgreSQL using Prisma
@@ -332,12 +344,25 @@ class ApiKeyService {
   }
 
   /**
-   * Delete/revoke an API key
+   * Delete/revoke an API key (with user ownership check)
    */
   async deleteApiKey(
     apiKey: string,
+    userId: string,
   ): Promise<{ success: boolean; message: string }> {
     try {
+      // Check if key exists and belongs to user
+      const existing = await prisma.apiKey.findFirst({
+        where: {
+          key: apiKey,
+          userId,
+        },
+      });
+
+      if (!existing) {
+        throw new Error("API key not found or access denied");
+      }
+
       // Delete from PostgreSQL
       await prisma.apiKey.delete({
         where: { key: apiKey },
@@ -350,6 +375,30 @@ class ApiKeyService {
       await redis.del(`apikey:${apiKey}:tokens`);
       await redis.del(`apikey:${apiKey}:lastRefill`);
 
+      // Clean up analytics data from usage-analytics service
+      try {
+        const analyticsUrl = config.analyticsUrl;
+        const response = await fetch(
+          `${analyticsUrl}/api/v1/analytics/api-keys/${apiKey}?userId=${userId}`,
+          { method: "DELETE" },
+        );
+        if (response.ok) {
+          const result = await response.json();
+          logger.info("Analytics data cleaned up", { apiKey, result });
+        } else {
+          logger.warn("Failed to clean up analytics data", {
+            apiKey,
+            status: response.status,
+          });
+        }
+      } catch (analyticsError) {
+        // Don't fail the delete if analytics cleanup fails
+        logger.warn("Analytics cleanup failed (non-critical)", {
+          apiKey,
+          error: analyticsError,
+        });
+      }
+
       return { success: true, message: "API key deleted" };
     } catch (error) {
       logger.error("Error deleting API key", { error });
@@ -360,20 +409,24 @@ class ApiKeyService {
   }
 
   /**
-   * Reset tokens for an API key
+   * Reset tokens for an API key (with user ownership check)
    */
   async resetTokens(
     apiKey: string,
+    userId: string,
   ): Promise<{ success: boolean; tokens: number }> {
     try {
-      // Get token limit from PostgreSQL
-      const dbRecord = await prisma.apiKey.findUnique({
-        where: { key: apiKey },
+      // Get token limit from PostgreSQL with ownership check
+      const dbRecord = await prisma.apiKey.findFirst({
+        where: {
+          key: apiKey,
+          userId,
+        },
         select: { tokensPerWindow: true },
       });
 
       if (!dbRecord) {
-        throw new Error("API key not found");
+        throw new Error("API key not found or access denied");
       }
 
       // Reset in Redis
@@ -391,17 +444,18 @@ class ApiKeyService {
   }
 
   /**
-   * Get API key statistics
+   * Get API key statistics (scoped to user)
    */
-  async getApiKeyStats(): Promise<ApiKeyStats> {
+  async getApiKeyStats(userId: string): Promise<ApiKeyStats> {
     try {
       const [totalKeys, enabledKeys, disabledKeys, tierGroups] =
         await Promise.all([
-          prisma.apiKey.count(),
-          prisma.apiKey.count({ where: { enabled: true } }),
-          prisma.apiKey.count({ where: { enabled: false } }),
+          prisma.apiKey.count({ where: { userId } }),
+          prisma.apiKey.count({ where: { userId, enabled: true } }),
+          prisma.apiKey.count({ where: { userId, enabled: false } }),
           prisma.apiKey.groupBy({
             by: ["tier"],
+            where: { userId },
             _count: true,
           }),
         ]);

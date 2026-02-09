@@ -10,11 +10,49 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique @db.VarChar(255)
+  passwordHash String    @map("password_hash") @db.VarChar(255)
+  name         String    @db.VarChar(255)
+  plan         String    @default("free") @db.VarChar(50)
+  
+  // Timestamps
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+  lastLogin    DateTime? @map("last_login")
+  
+  // Relations
+  apiKeys      ApiKey[]
+  endpoints    BackendEndpoint[]
+  quota        Quota?
+  
+  @@index([email])
+  @@index([plan])
+  @@map("users")
+}
+
+model Quota {
+  id                Int      @id @default(autoincrement())
+  userId            String   @unique @map("user_id")
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  maxApiKeys        Int      @default(5) @map("max_api_keys")
+  maxRequestsPerDay Int      @default(10000) @map("max_requests_per_day")
+  maxEndpoints      Int      @default(10) @map("max_endpoints")
+  
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+  
+  @@map("quotas")
+}
+
 model ApiKey {
   id              Int       @id @default(autoincrement())
   key             String    @unique @db.VarChar(255)
   name            String    @db.VarChar(255)
-  userId          String?   @map("user_id") @db.VarChar(255)
+  userId          String    @map("user_id") @db.VarChar(255)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tier            String    @default("free") @db.VarChar(50)
   
   // Rate limit configuration
@@ -40,4 +78,28 @@ model ApiKey {
   @@index([tier])
   @@index([createdAt])
   @@map("api_keys")
+}
+
+model BackendEndpoint {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  name        String    @db.VarChar(255)
+  slug        String    @db.VarChar(255)
+  targetUrl   String    @map("target_url") @db.VarChar(500)
+  healthCheck String?   @map("health_check") @db.VarChar(500)
+  
+  // Authentication for calling user's backend
+  authType    String    @default("none") @map("auth_type") @db.VarChar(50)
+  authConfig  Json?     @map("auth_config")
+  
+  enabled     Boolean   @default(true)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  @@unique([userId, slug])
+  @@index([userId])
+  @@index([enabled])
+  @@map("backend_endpoints")
 }

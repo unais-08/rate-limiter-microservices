@@ -5,6 +5,10 @@ import type { AnalyticsRequestData } from "../types/index.js";
 
 const logger = new Logger(config.serviceName, config.logLevel);
 
+// Internal service secret for service-to-service auth
+const INTERNAL_SERVICE_SECRET =
+  process.env.INTERNAL_SERVICE_SECRET || "internal-service-secret-dev";
+
 /**
  * Analytics Service Client
  * Communicates with Usage Analytics Service to log request metrics
@@ -34,6 +38,10 @@ class AnalyticsClient {
         requestData,
         {
           timeout: 2000, // 2 second timeout
+          headers: {
+            "x-internal-service-token": INTERNAL_SERVICE_SECRET,
+            "x-user-id": requestData.userId,
+          },
         },
       );
 
@@ -55,12 +63,16 @@ class AnalyticsClient {
   /**
    * Get analytics for an API key
    */
-  async getApiKeyAnalytics(apiKey: string): Promise<unknown> {
+  async getApiKeyAnalytics(apiKey: string, userId: string): Promise<unknown> {
     try {
       const response = await axios.get(
         `${this.analyticsServiceUrl}/api/v1/analytics/api-keys/${apiKey}`,
         {
           timeout: 5000,
+          headers: {
+            "x-internal-service-token": INTERNAL_SERVICE_SECRET,
+            "x-user-id": userId,
+          },
         },
       );
 
@@ -76,12 +88,16 @@ class AnalyticsClient {
   /**
    * Get system statistics
    */
-  async getSystemStats(): Promise<unknown> {
+  async getSystemStats(userId: string): Promise<unknown> {
     try {
       const response = await axios.get(
         `${this.analyticsServiceUrl}/api/v1/analytics/system-stats`,
         {
           timeout: 5000,
+          headers: {
+            "x-internal-service-token": INTERNAL_SERVICE_SECRET,
+            "x-user-id": userId,
+          },
         },
       );
 

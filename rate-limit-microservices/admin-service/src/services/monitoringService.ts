@@ -64,12 +64,12 @@ class MonitoringService {
   }
 
   /**
-   * Get system-wide metrics from analytics
+   * Get system-wide metrics from analytics (scoped to user)
    */
-  async getSystemMetrics(): Promise<any> {
+  async getSystemMetrics(userId: string): Promise<any> {
     try {
       const response = await axios.get(
-        `${config.analyticsUrl}/api/v1/analytics/system-stats`,
+        `${config.analyticsUrl}/api/v1/analytics/system-stats?userId=${userId}`,
         {
           timeout: 5000,
         },
@@ -84,12 +84,15 @@ class MonitoringService {
   }
 
   /**
-   * Get top rate-limited API keys
+   * Get top rate-limited API keys (scoped to user)
    */
-  async getTopRateLimitedKeys(limit: number = 10): Promise<any[]> {
+  async getTopRateLimitedKeys(
+    userId: string,
+    limit: number = 10,
+  ): Promise<any[]> {
     try {
       const response = await axios.get(
-        `${config.analyticsUrl}/api/v1/analytics/top-rate-limited?limit=${limit}`,
+        `${config.analyticsUrl}/api/v1/analytics/top-rate-limited?userId=${userId}&limit=${limit}`,
         { timeout: 5000 },
       );
       return response.data.data;
@@ -102,17 +105,20 @@ class MonitoringService {
   }
 
   /**
-   * Get time-series data
+   * Get time-series data (scoped to user)
    */
   async getTimeSeriesData(
+    userId: string,
     hours: number = 24,
     interval: string = "hour",
+    apiKey?: string,
   ): Promise<any[]> {
     try {
-      const response = await axios.get(
-        `${config.analyticsUrl}/api/v1/analytics/time-series?hours=${hours}&interval=${interval}`,
-        { timeout: 5000 },
-      );
+      let url = `${config.analyticsUrl}/api/v1/analytics/time-series?userId=${userId}&hours=${hours}&interval=${interval}`;
+      if (apiKey) {
+        url += `&apiKey=${encodeURIComponent(apiKey)}`;
+      }
+      const response = await axios.get(url, { timeout: 5000 });
       return response.data.data;
     } catch (error) {
       logger.error("Failed to fetch time-series data", {
@@ -123,12 +129,12 @@ class MonitoringService {
   }
 
   /**
-   * Get all endpoint analytics
+   * Get all endpoint analytics (scoped to user)
    */
-  async getEndpointAnalytics(): Promise<any[]> {
+  async getEndpointAnalytics(userId: string): Promise<any[]> {
     try {
       const response = await axios.get(
-        `${config.analyticsUrl}/api/v1/analytics/endpoints`,
+        `${config.analyticsUrl}/api/v1/analytics/endpoints?userId=${userId}`,
         {
           timeout: 5000,
         },
@@ -143,15 +149,15 @@ class MonitoringService {
   }
 
   /**
-   * Get comprehensive dashboard data
+   * Get comprehensive dashboard data (scoped to user)
    */
-  async getDashboardData(): Promise<DashboardData> {
+  async getDashboardData(userId: string): Promise<DashboardData> {
     const [servicesHealth, systemMetrics, topRateLimited, timeSeries] =
       await Promise.all([
         this.checkAllServicesHealth(),
-        this.getSystemMetrics(),
-        this.getTopRateLimitedKeys(5),
-        this.getTimeSeriesData(24, "hour"),
+        this.getSystemMetrics(userId),
+        this.getTopRateLimitedKeys(userId, 5),
+        this.getTimeSeriesData(userId, 24, "hour"),
       ]);
 
     return {

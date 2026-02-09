@@ -60,6 +60,7 @@ export interface SystemStats {
 }
 
 export interface LogRequest {
+  userId: string;
   apiKey: string;
   name?: string | null;
   endpoint: string;

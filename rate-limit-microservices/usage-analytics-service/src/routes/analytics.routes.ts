@@ -64,4 +64,14 @@ router.get(
   analyticsController.getSystemStats.bind(analyticsController),
 );
 
+/**
+ * DELETE /api/analytics/api-keys/:apiKey
+ * Delete all analytics data for a specific API key
+ * Called when an API key is deleted from the admin service
+ */
+router.delete(
+  "/api-keys/:apiKey",
+  analyticsController.deleteApiKeyData.bind(analyticsController),
+);
+
 export default router;

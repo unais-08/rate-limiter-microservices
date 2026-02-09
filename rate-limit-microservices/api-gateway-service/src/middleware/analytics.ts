@@ -20,21 +20,27 @@ export const analyticsMiddleware: RouteHandler = (req, res, next) => {
     // Calculate response time
     const responseTimeMs = Date.now() - startTime;
 
-    // Log to analytics service (async, non-blocking)
-    const analyticsData: AnalyticsRequestData = {
-      apiKey: req.apiKey || "unknown",
-      name: req.apiKeyMetadata?.metadata?.name || null,
-      endpoint: req.originalUrl || req.url,
-      method: req.method,
-      statusCode: res.statusCode,
-      responseTimeMs,
-      rateLimitHit: res.statusCode === 429,
-    };
+    const userId = req.apiKeyMetadata?.userId || "unknown";
 
-    // Send to analytics service (don't wait for response)
-    analyticsClient.logRequest(analyticsData).catch(() => {
-      // Already logged in client, just catch to prevent unhandled promise rejection
-    });
+    // Only log if we have a valid userId (skip unknown users from old API keys)
+    if (userId !== "unknown") {
+      // Log to analytics service (async, non-blocking)
+      const analyticsData: AnalyticsRequestData = {
+        userId,
+        apiKey: req.apiKey || "unknown",
+        name: req.apiKeyMetadata?.metadata?.name || null,
+        endpoint: req.originalUrl || req.url,
+        method: req.method,
+        statusCode: res.statusCode,
+        responseTimeMs,
+        rateLimitHit: res.statusCode === 429,
+      };
+
+      // Send to analytics service (don't wait for response)
+      analyticsClient.logRequest(analyticsData).catch(() => {
+        // Already logged in client, just catch to prevent unhandled promise rejection
+      });
+    }
 
     // Call original json method to send response
     return originalJson(body);
@@ -61,21 +67,26 @@ export const logRequestAnalytics: RouteHandler = (req, res, next) => {
   // This runs after response is sent
   res.on("finish", () => {
     const responseTimeMs = Date.now() - (req.startTime || Date.now());
+    const userId = req.apiKeyMetadata?.userId || "unknown";
 
-    const analyticsData: AnalyticsRequestData = {
-      apiKey: req.apiKey || "unknown",
-      name: req.apiKeyMetadata?.metadata?.name || null,
-      endpoint: req.originalUrl || req.url,
-      method: req.method,
-      statusCode: res.statusCode,
-      responseTimeMs,
-      rateLimitHit: res.statusCode === 429,
-    };
+    // Only log if we have a valid userId
+    if (userId !== "unknown") {
+      const analyticsData: AnalyticsRequestData = {
+        userId,
+        apiKey: req.apiKey || "unknown",
+        name: req.apiKeyMetadata?.metadata?.name || null,
+        endpoint: req.originalUrl || req.url,
+        method: req.method,
+        statusCode: res.statusCode,
+        responseTimeMs,
+        rateLimitHit: res.statusCode === 429,
+      };
 
-    // Log asynchronously (fire and forget)
-    analyticsClient.logRequest(analyticsData).catch(() => {
-      // Silently fail - analytics shouldn't affect main flow
-    });
+      // Log asynchronously (fire and forget)
+      analyticsClient.logRequest(analyticsData).catch(() => {
+        // Silently fail - analytics shouldn't affect main flow
+      });
+    }
   });
 
   next();

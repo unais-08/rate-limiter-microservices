@@ -11,6 +11,7 @@ class AnalyticsController {
 
       // Validate required fields
       const requiredFields = [
+        "userId",
         "apiKey",
         "endpoint",
         "method",
@@ -51,11 +52,24 @@ class AnalyticsController {
     try {
       const { apiKey } = req.params;
       const { limit, offset } = req.query;
+      const userId = req.userId || (req.query.userId as string);
 
-      const analytics = await analyticsService.getApiKeyAnalytics(apiKey, {
-        limit: parseInt(limit as string) || 100,
-        offset: parseInt(offset as string) || 0,
-      });
+      if (!userId) {
+        res.status(400).json({
+          success: false,
+          error: "User ID is required",
+        });
+        return;
+      }
+
+      const analytics = await analyticsService.getApiKeyAnalytics(
+        userId,
+        apiKey,
+        {
+          limit: parseInt(limit as string) || 100,
+          offset: parseInt(offset as string) || 0,
+        },
+      );
 
       res.json({
         success: true,
@@ -76,8 +90,17 @@ class AnalyticsController {
   async getAllApiKeysAnalytics(req: Request, res: Response): Promise<void> {
     try {
       const { limit, offset } = req.query;
+      const userId = req.userId || (req.query.userId as string);
 
-      const analytics = await analyticsService.getAllApiKeysAnalytics({
+      if (!userId) {
+        res.status(400).json({
+          success: false,
+          error: "User ID is required",
+        });
+        return;
+      }
+
+      const analytics = await analyticsService.getAllApiKeysAnalytics(userId, {
         limit: parseInt(limit as string) || 50,
         offset: parseInt(offset as string) || 0,
       });
@@ -101,8 +124,17 @@ class AnalyticsController {
   async getEndpointAnalytics(req: Request, res: Response): Promise<void> {
     try {
       const { limit, offset } = req.query;
+      const userId = req.userId || (req.query.userId as string);
 
-      const analytics = await analyticsService.getEndpointAnalytics({
+      if (!userId) {
+        res.status(400).json({
+          success: false,
+          error: "User ID is required",
+        });
+        return;
+      }
+
+      const analytics = await analyticsService.getEndpointAnalytics(userId, {
         limit: parseInt(limit as string) || 50,
         offset: parseInt(offset as string) || 0,
       });
@@ -126,8 +158,17 @@ class AnalyticsController {
   async getTimeSeriesData(req: Request, res: Response): Promise<void> {
     try {
       const { hours, interval, apiKey } = req.query;
+      const userId = req.userId || (req.query.userId as string);
 
-      const data = await analyticsService.getTimeSeriesData({
+      if (!userId) {
+        res.status(400).json({
+          success: false,
+          error: "User ID is required",
+        });
+        return;
+      }
+
+      const data = await analyticsService.getTimeSeriesData(userId, {
         hours: parseInt(hours as string) || 24,
         interval: (interval as string) || "hour",
         apiKey: (apiKey as string) || null,
@@ -152,8 +193,18 @@ class AnalyticsController {
   async getTopRateLimitedKeys(req: Request, res: Response): Promise<void> {
     try {
       const { limit } = req.query;
+      const userId = req.userId || (req.query.userId as string);
+
+      if (!userId) {
+        res.status(400).json({
+          success: false,
+          error: "User ID is required",
+        });
+        return;
+      }
 
       const data = await analyticsService.getTopRateLimitedKeys(
+        userId,
         parseInt(limit as string) || 10,
       );
 
@@ -173,9 +224,19 @@ class AnalyticsController {
   /**
    * Get overall system statistics
    */
-  async getSystemStats(_req: Request, res: Response): Promise<void> {
+  async getSystemStats(req: Request, res: Response): Promise<void> {
     try {
-      const stats = await analyticsService.getSystemStats();
+      const userId = req.userId || (req.query.userId as string);
+
+      if (!userId) {
+        res.status(400).json({
+          success: false,
+          error: "User ID is required",
+        });
+        return;
+      }
+
+      const stats = await analyticsService.getSystemStats(userId);
 
       res.json({
         success: true,
@@ -186,6 +247,47 @@ class AnalyticsController {
       res.status(500).json({
         success: false,
         error: "Failed to get system stats",
+      });
+    }
+  }
+
+  /**
+   * Delete all analytics data for a specific API key
+   * Called when an API key is deleted from the admin service
+   */
+  async deleteApiKeyData(req: Request, res: Response): Promise<void> {
+    try {
+      const { apiKey } = req.params;
+      const userId = req.userId || (req.query.userId as string);
+
+      if (!userId) {
+        res.status(400).json({
+          success: false,
+          error: "User ID is required",
+        });
+        return;
+      }
+
+      if (!apiKey) {
+        res.status(400).json({
+          success: false,
+          error: "API key is required",
+        });
+        return;
+      }
+
+      const result = await analyticsService.deleteApiKeyData(userId, apiKey);
+
+      res.json({
+        success: true,
+        message: `Deleted ${result.deletedLogs} logs and ${result.deletedMetrics} metrics`,
+        data: result,
+      });
+    } catch (error) {
+      console.error("❌ Error in deleteApiKeyData:", error);
+      res.status(500).json({
+        success: false,
+        error: "Failed to delete API key data",
       });
     }
   }

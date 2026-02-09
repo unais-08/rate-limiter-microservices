@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { analytics, adminApi } from "@/lib/api";
+import { adminApi } from "@/lib/api";
 import { ApiKey, TimeSeriesData } from "@/lib/types";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -88,14 +88,18 @@ export default function ApiAnalyticsPage() {
         "30d": "day",
       };
 
-      const params = {
-        hours: hoursMap[timeRange],
-        interval: intervalMap[timeRange],
-        apiKey: selectedApiKey === "all" ? undefined : selectedApiKey,
-      };
+      const hours = hoursMap[timeRange];
+      const interval = intervalMap[timeRange];
 
-      // Fetch time-series data
-      const timeSeriesResponse = await analytics.getTimeSeriesData(params);
+      // Fetch time-series data via admin API (includes auth)
+      // Pass the selected API key for filtering (if not "all")
+      const apiKeyFilter =
+        selectedApiKey !== "all" ? selectedApiKey : undefined;
+      const timeSeriesResponse = await adminApi.getTimeSeries(
+        hours,
+        interval,
+        apiKeyFilter,
+      );
       const rawData = timeSeriesResponse.data.data || [];
 
       console.log("Time series data:", rawData);
