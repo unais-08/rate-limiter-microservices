@@ -1,0 +1,929 @@
+{
+  "info": {
+    "name": "Rate Limiter Microservices API",
+    "description": "Complete API collection for testing the Rate Limiter microservices system",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "0"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{authToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3004",
+      "type": "string"
+    },
+    {
+      "key": "gatewayUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "analyticsUrl",
+      "value": "http://localhost:3003",
+      "type": "string"
+    },
+    {
+      "key": "rateLimiterUrl",
+      "value": "http://localhost:3002",
+      "type": "string"
+    },
+    {
+      "key": "backendUrl",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "authToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "apiKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('authToken', response.data.token);",
+                  "    pm.collectionVariables.set('userId', response.data.user.id);",
+                  "    console.log('Auth token saved:', response.data.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"Test User\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "description": "Register a new user account"
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('authToken', response.data.token);",
+                  "    pm.collectionVariables.set('userId', response.data.user.id);",
+                  "    console.log('Auth token saved:', response.data.token);",
+                  "    console.log('User ID saved:', response.data.user.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "description": "Login and get auth token"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "Get current authenticated user details"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "2. API Keys",
+      "item": [
+        {
+          "name": "Create API Key",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('apiKey', response.data.key);",
+                  "    console.log('API Key saved:', response.data.key);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test API Key\",\n  \"description\": \"API key for testing\",\n  \"tier\": \"free\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/keys",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "keys"]
+            },
+            "description": "Create a new API key"
+          },
+          "response": []
+        },
+        {
+          "name": "List API Keys",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/keys",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "keys"]
+            },
+            "description": "Get all API keys for the authenticated user"
+          },
+          "response": []
+        },
+        {
+          "name": "Get API Key",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/keys/{{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "keys", "{{apiKey}}"]
+            },
+            "description": "Get details of a specific API key"
+          },
+          "response": []
+        },
+        {
+          "name": "Get API Keys Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/keys/stats",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "keys", "stats"]
+            },
+            "description": "Get statistics about API keys"
+          },
+          "response": []
+        },
+        {
+          "name": "Update API Key",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated API Key\",\n  \"enabled\": true,\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/keys/{{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "keys", "{{apiKey}}"]
+            },
+            "description": "Update an API key"
+          },
+          "response": []
+        },
+        {
+          "name": "Reset API Key Tokens",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/keys/{{apiKey}}/reset",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "keys", "{{apiKey}}", "reset"]
+            },
+            "description": "Reset tokens for an API key"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete API Key",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/keys/{{apiKey}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "keys", "{{apiKey}}"]
+            },
+            "description": "Delete an API key"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "3. Backend Endpoints",
+      "item": [
+        {
+          "name": "List Backend Endpoints",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/endpoints",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "endpoints"]
+            },
+            "description": "Get all backend endpoints for the authenticated user"
+          },
+          "response": []
+        },
+        {
+          "name": "Create Backend Endpoint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My Backend API\",\n  \"slug\": \"my-api\",\n  \"targetUrl\": \"http://localhost:8081\",\n  \"authType\": \"bearer\",\n  \"authConfig\": {\n    \"token\": \"your-bearer-token\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/endpoints",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "endpoints"]
+            },
+            "description": "Create a new backend endpoint configuration"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Backend Endpoint",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/endpoints/:endpointId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "endpoints", ":endpointId"],
+              "variable": [
+                {
+                  "key": "endpointId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Get details of a specific backend endpoint"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Backend Endpoint",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Backend API\",\n  \"targetUrl\": \"http://localhost:8082\",\n  \"enabled\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/endpoints/:endpointId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "endpoints", ":endpointId"],
+              "variable": [
+                {
+                  "key": "endpointId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Update a backend endpoint"
+          },
+          "response": []
+        },
+        {
+          "name": "Test Backend Endpoint",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/endpoints/:endpointId/test",
+              "host": ["{{baseUrl}}"],
+              "path": [
+                "api",
+                "v1",
+                "admin",
+                "endpoints",
+                ":endpointId",
+                "test"
+              ],
+              "variable": [
+                {
+                  "key": "endpointId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Test connection to a backend endpoint"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Backend Endpoint",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/endpoints/:endpointId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "endpoints", ":endpointId"],
+              "variable": [
+                {
+                  "key": "endpointId",
+                  "value": ""
+                }
+              ]
+            },
+            "description": "Delete a backend endpoint"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "4. Monitoring & Analytics",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/monitoring/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "monitoring", "health"]
+            },
+            "description": "Check health of all services"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Dashboard Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/monitoring/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "monitoring", "dashboard"]
+            },
+            "description": "Get dashboard summary data"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Time Series Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/monitoring/time-series?hours=24&interval=hour",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "monitoring", "time-series"],
+              "query": [
+                {
+                  "key": "hours",
+                  "value": "24"
+                },
+                {
+                  "key": "interval",
+                  "value": "hour"
+                },
+                {
+                  "key": "apiKey",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Optional: filter by specific API key"
+                }
+              ]
+            },
+            "description": "Get time-series analytics data"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Endpoint Analytics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/monitoring/endpoints",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "monitoring", "endpoints"]
+            },
+            "description": "Get analytics for all endpoints"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Top Rate Limited",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/monitoring/top-rate-limited?limit=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "monitoring", "top-rate-limited"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Get top rate-limited API keys"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "5. API Gateway (User Requests)",
+      "item": [
+        {
+          "name": "Request via Gateway - Default Backend",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/v1/users",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "v1", "users"]
+            },
+            "description": "Make request through gateway to default backend"
+          },
+          "response": []
+        },
+        {
+          "name": "Request via Gateway - User Backend (GET)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/v1/s/my-api/users",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "v1", "s", "my-api", "users"]
+            },
+            "description": "Make GET request through gateway to user's backend"
+          },
+          "response": []
+        },
+        {
+          "name": "Request via Gateway - User Backend (POST)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Item\",\n  \"value\": 123\n}"
+            },
+            "url": {
+              "raw": "{{gatewayUrl}}/api/v1/s/my-api/items",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "v1", "s", "my-api", "items"]
+            },
+            "description": "Make POST request through gateway to user's backend"
+          },
+          "response": []
+        },
+        {
+          "name": "Request via Gateway - With Query Params",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/v1/s/my-api/orders?status=pending&limit=10",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "v1", "s", "my-api", "orders"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "Make request with query parameters through gateway"
+          },
+          "response": []
+        },
+        {
+          "name": "Test Rate Limiting (Multiple Requests)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-API-Key",
+                "value": "{{apiKey}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{gatewayUrl}}/api/v1/users",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["api", "v1", "users"]
+            },
+            "description": "Send multiple requests quickly to test rate limiting (use Runner to send many times)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "6. Rate Limiter Service (Internal)",
+      "item": [
+        {
+          "name": "Check Rate Limit",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiKey\": \"{{apiKey}}\"\n}"
+            },
+            "url": {
+              "raw": "{{rateLimiterUrl}}/api/v1/ratelimit/check",
+              "host": ["{{rateLimiterUrl}}"],
+              "path": ["api", "v1", "ratelimit", "check"]
+            },
+            "description": "Check if request should be allowed (internal service call)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Rate Limit Status",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{rateLimiterUrl}}/api/v1/ratelimit/status/{{apiKey}}",
+              "host": ["{{rateLimiterUrl}}"],
+              "path": ["api", "v1", "ratelimit", "status", "{{apiKey}}"]
+            },
+            "description": "Get current rate limit status for an API key"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "7. Analytics Service (Internal)",
+      "item": [
+        {
+          "name": "Log Request",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"apiKey\": \"{{apiKey}}\",\n  \"endpoint\": \"/api/v1/users\",\n  \"method\": \"GET\",\n  \"statusCode\": 200,\n  \"responseTimeMs\": 45,\n  \"rateLimitHit\": false\n}"
+            },
+            "url": {
+              "raw": "{{analyticsUrl}}/api/v1/analytics/log",
+              "host": ["{{analyticsUrl}}"],
+              "path": ["api", "v1", "analytics", "log"]
+            },
+            "description": "Log a request (internal service call)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get All API Keys Analytics",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{analyticsUrl}}/api/v1/analytics/api-keys?userId={{userId}}",
+              "host": ["{{analyticsUrl}}"],
+              "path": ["api", "v1", "analytics", "api-keys"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                }
+              ]
+            },
+            "description": "Get analytics for all API keys"
+          },
+          "response": []
+        },
+        {
+          "name": "Get API Key Analytics",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{analyticsUrl}}/api/v1/analytics/api-keys/{{apiKey}}?userId={{userId}}",
+              "host": ["{{analyticsUrl}}"],
+              "path": ["api", "v1", "analytics", "api-keys", "{{apiKey}}"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                }
+              ]
+            },
+            "description": "Get analytics for a specific API key"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Time Series Data",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{analyticsUrl}}/api/v1/analytics/time-series?userId={{userId}}&hours=24&interval=hour",
+              "host": ["{{analyticsUrl}}"],
+              "path": ["api", "v1", "analytics", "time-series"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                },
+                {
+                  "key": "hours",
+                  "value": "24"
+                },
+                {
+                  "key": "interval",
+                  "value": "hour"
+                },
+                {
+                  "key": "apiKey",
+                  "value": "",
+                  "disabled": true,
+                  "description": "Optional: filter by API key"
+                }
+              ]
+            },
+            "description": "Get time-series analytics data"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete API Key Analytics",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{analyticsUrl}}/api/v1/analytics/api-keys/{{apiKey}}?userId={{userId}}",
+              "host": ["{{analyticsUrl}}"],
+              "path": ["api", "v1", "analytics", "api-keys", "{{apiKey}}"],
+              "query": [
+                {
+                  "key": "userId",
+                  "value": "{{userId}}"
+                }
+              ]
+            },
+            "description": "Delete all analytics data for an API key (called when API key is deleted)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "8. Health Checks",
+      "item": [
+        {
+          "name": "Admin Service Health",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Gateway Health",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{gatewayUrl}}/health",
+              "host": ["{{gatewayUrl}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Rate Limiter Health",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{rateLimiterUrl}}/health",
+              "host": ["{{rateLimiterUrl}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Analytics Health",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{analyticsUrl}}/health",
+              "host": ["{{analyticsUrl}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

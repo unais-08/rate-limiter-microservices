@@ -18,6 +18,10 @@ export default function ApiKeysPage() {
   const [createForm, setCreateForm] = useState({
     name: "",
     description: "",
+    useCustomLimits: false,
+    tokensPerWindow: 100,
+    refillRate: 1.67,
+    maxBurst: 200,
   });
   const [creatingKey, setCreatingKey] = useState(false);
   const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null);
@@ -58,12 +62,31 @@ export default function ApiKeysPage() {
 
     setCreatingKey(true);
     try {
-      const response = await adminApi.createApiKey(createForm);
+      const payload: any = {
+        name: createForm.name,
+        description: createForm.description,
+      };
+
+      // Only include custom limits if user enabled them
+      if (createForm.useCustomLimits) {
+        payload.tokensPerWindow = createForm.tokensPerWindow;
+        payload.refillRate = createForm.refillRate;
+        payload.maxBurst = createForm.maxBurst;
+      }
+
+      const response = await adminApi.createApiKey(payload);
       const createdKey = response.data.data;
       setNewlyCreatedKey(createdKey.key);
       showToast("API key created successfully", "success");
 
-      setCreateForm({ name: "", description: "" });
+      setCreateForm({
+        name: "",
+        description: "",
+        useCustomLimits: false,
+        tokensPerWindow: 100,
+        refillRate: 1.67,
+        maxBurst: 200,
+      });
       fetchApiKeys();
       fetchStats();
     } catch (error: any) {
@@ -335,9 +358,16 @@ export default function ApiKeysPage() {
                           )}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                          <div>{limits.perMinute.toLocaleString()}/min</div>
-                          <div className="text-xs text-gray-400 dark:text-gray-500">
-                            {limits.perDay.toLocaleString()}/day
+                          <div className="space-y-1">
+                            <div className="font-medium text-gray-900 dark:text-white">
+                              {limits.perMinute.toLocaleString()}/min
+                            </div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {limits.perDay.toLocaleString()}/day
+                            </div>
+                            <div className="text-xs text-gray-400 dark:text-gray-500">
+                              Burst: {apiKey.maxBurst.toLocaleString()}
+                            </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
@@ -419,12 +449,105 @@ export default function ApiKeysPage() {
                       />
                     </div>
 
-                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
-                      <p className="text-sm text-blue-800 dark:text-blue-300">
-                        Rate limits are automatically assigned based on your
-                        tier.
-                      </p>
+                    {/* Custom Limits Toggle */}
+                    <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+                      <label className="flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={createForm.useCustomLimits}
+                          onChange={(e) =>
+                            setCreateForm({
+                              ...createForm,
+                              useCustomLimits: e.target.checked,
+                            })
+                          }
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                        />
+                        <span className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                          Set Custom Rate Limits
+                        </span>
+                      </label>
                     </div>
+
+                    {/* Custom Limits Fields */}
+                    {createForm.useCustomLimits && (
+                      <div className="space-y-4 bg-gray-50 dark:bg-gray-900/50 p-4 rounded-md border border-gray-200 dark:border-gray-700">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Tokens Per Window
+                          </label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={createForm.tokensPerWindow}
+                            onChange={(e) =>
+                              setCreateForm({
+                                ...createForm,
+                                tokensPerWindow: parseInt(e.target.value) || 1,
+                              })
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                          />
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Total requests allowed per time window
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Refill Rate (tokens/second)
+                          </label>
+                          <Input
+                            type="number"
+                            min="0.1"
+                            step="0.1"
+                            value={createForm.refillRate}
+                            onChange={(e) =>
+                              setCreateForm({
+                                ...createForm,
+                                refillRate: parseFloat(e.target.value) || 0.1,
+                              })
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                          />
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            How fast tokens regenerate (
+                            {Math.floor(createForm.refillRate * 60)}/min, ~
+                            {Math.floor(createForm.refillRate * 3600)}/hour)
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                            Max Burst
+                          </label>
+                          <Input
+                            type="number"
+                            min="1"
+                            value={createForm.maxBurst}
+                            onChange={(e) =>
+                              setCreateForm({
+                                ...createForm,
+                                maxBurst: parseInt(e.target.value) || 1,
+                              })
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-900 text-gray-900 dark:text-white"
+                          />
+                          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                            Maximum burst capacity for peak traffic
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {!createForm.useCustomLimits && (
+                      <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md p-3">
+                        <p className="text-sm text-blue-800 dark:text-blue-300">
+                          Default rate limits will be applied based on system
+                          configuration.
+                        </p>
+                      </div>
+                    )}
                   </>
                 ) : (
                   <div className="space-y-4">

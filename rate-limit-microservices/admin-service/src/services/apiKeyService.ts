@@ -33,13 +33,18 @@ class ApiKeyService {
     const {
       name = "Unnamed Key",
       tier = "free",
-      tokensPerWindow = config.defaultTokens,
-      refillRate = config.refillRate,
-      maxBurst = config.maxBurst,
+      tokensPerWindow,
+      refillRate,
+      maxBurst,
       enabled = true,
       description = null,
       allowedIps = [],
     } = options;
+
+    // Use user-provided values, otherwise fall back to config defaults
+    const finalTokensPerWindow = tokensPerWindow ?? config.defaultTokens ?? 2;
+    const finalRefillRate = refillRate ?? config.refillRate ?? 0.2;
+    const finalMaxBurst = maxBurst ?? config.maxBurst ?? 2;
 
     const apiKey = this.generateApiKey();
 
@@ -51,9 +56,9 @@ class ApiKeyService {
           name,
           userId,
           tier,
-          tokensPerWindow,
-          refillRate,
-          maxBurst,
+          tokensPerWindow: finalTokensPerWindow,
+          refillRate: finalRefillRate,
+          maxBurst: finalMaxBurst,
           enabled,
           description,
           allowedIps,
@@ -67,16 +72,16 @@ class ApiKeyService {
         name: String(name),
         userId: String(userId),
         tier: String(tier),
-        tokensPerWindow: String(tokensPerWindow),
-        refillRate: String(refillRate),
-        maxBurst: String(maxBurst),
+        tokensPerWindow: String(finalTokensPerWindow),
+        refillRate: String(finalRefillRate),
+        maxBurst: String(finalMaxBurst),
         enabled: String(enabled),
         createdAt: dbRecord.createdAt.toISOString(),
         lastUsed: "null",
       };
 
       await redis.hSet(`apikey:${apiKey}:metadata`, metadata);
-      await redis.set(`apikey:${apiKey}:tokens`, tokensPerWindow);
+      await redis.set(`apikey:${apiKey}:tokens`, finalTokensPerWindow);
       await redis.set(`apikey:${apiKey}:lastRefill`, Date.now().toString());
       await redis.sAdd("apikeys:all", apiKey);
       await redis.sAdd(`user:${userId}:apikeys`, apiKey);
