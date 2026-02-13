@@ -18,7 +18,7 @@
       "type": "shell",
       "command": "source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true && npm run dev",
       "options": {
-        "cwd": "${workspaceFolder}/rate-limit-microservices/admin-service",
+        "cwd": "${workspaceFolder}/microservices/admin-service",
         "shell": {
           "executable": "/bin/zsh",
           "args": ["-i", "-c"]
@@ -54,7 +54,7 @@
       "type": "shell",
       "command": "source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true && npm run dev",
       "options": {
-        "cwd": "${workspaceFolder}/rate-limit-microservices/api-gateway-service",
+        "cwd": "${workspaceFolder}/microservices/gateway-service",
         "shell": {
           "executable": "/bin/zsh",
           "args": ["-i", "-c"]
@@ -87,7 +87,7 @@
       "type": "shell",
       "command": "source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true && npm run dev",
       "options": {
-        "cwd": "${workspaceFolder}/rate-limit-microservices/rate-limiter-service",
+        "cwd": "${workspaceFolder}/microservices/ratelimit-service",
         "shell": {
           "executable": "/bin/zsh",
           "args": ["-i", "-c"]
@@ -120,7 +120,7 @@
       "type": "shell",
       "command": "source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true && npm run dev",
       "options": {
-        "cwd": "${workspaceFolder}/rate-limit-microservices/usage-analytics-service",
+        "cwd": "${workspaceFolder}/microservices/analytics-service",
         "shell": {
           "executable": "/bin/zsh",
           "args": ["-i", "-c"]
@@ -153,7 +153,7 @@
       "type": "shell",
       "command": "source ~/.zshrc 2>/dev/null || source ~/.bashrc 2>/dev/null || true && npm run dev",
       "options": {
-        "cwd": "${workspaceFolder}/backend-service",
+        "cwd": "${workspaceFolder}/microservices/dummy-backend-service",
         "shell": {
           "executable": "/bin/zsh",
           "args": ["-i", "-c"]
