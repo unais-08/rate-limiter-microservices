@@ -300,6 +300,83 @@ redis-server
 
 - **PostgreSQL** - Relational database
 - **Redis** - Cache & rate limiting state
+- **Docker** - Containerization
+- **Nginx** - Reverse proxy (production)
+
+## 🐳 Docker Deployment
+
+### Development with Docker
+
+```bash
+# Quick start with Docker
+./scripts/deploy-dev.sh
+
+# Or manually
+docker compose up -d
+
+# View logs
+docker compose logs -f
+
+# Stop services
+docker compose down
+```
+
+**Access URLs:**
+
+- Frontend: http://localhost:3005
+- API Gateway: http://localhost:3000
+- Admin API: http://localhost:3004
+
+### Production with Docker (Local Machine)
+
+For running production mode on your local machine:
+
+```bash
+# 1. Configure environment
+cp .env.production.example .env.production
+nano .env.production
+
+# 2. Update these values in .env.production:
+# - POSTGRES_PASSWORD=YourStrongPassword
+# - REDIS_PASSWORD=YourRedisPassword
+# - JWT_SECRET=Generate64CharSecret
+# - NEXT_PUBLIC_API_URL=http://localhost:3004
+# - NEXT_PUBLIC_GATEWAY_URL=http://localhost:3000
+
+# 3. Deploy
+./scripts/deploy-prod.sh
+
+# Or manually
+docker compose -f docker-compose.prod.yml build
+docker compose -f docker-compose.prod.yml up -d
+```
+
+**📖 Full Guide:** See [Local Production Setup Guide](./docs/LOCAL-PRODUCTION-SETUP.md) for detailed instructions.
+
+**Production Features:**
+
+- Multi-stage builds for optimized images
+- Service replication (2-5 replicas per service)
+- Resource limits (CPU/Memory)
+- Health checks
+- Auto-restart policies
+- Volume persistence
+
+### Production Deployment (Remote Server)
+
+For deploying to a remote server with a domain:
+
+```bash
+# Update .env.production with your domain
+NEXT_PUBLIC_API_URL=https://api.yourdomain.com
+NEXT_PUBLIC_GATEWAY_URL=https://gateway.yourdomain.com
+
+# Configure SSL certificates in nginx/ssl/
+# Update nginx/nginx.conf with your domain
+
+# Deploy
+docker compose -f docker-compose.prod.yml up -d
+```
 
 ## ✨ Features
 

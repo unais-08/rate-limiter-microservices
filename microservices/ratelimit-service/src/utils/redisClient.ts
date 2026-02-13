@@ -1,6 +1,6 @@
 import { createClient } from "redis";
 import config from "../config/rateLimit.config.js";
-import Logger from "../utils/logger.js";
+import Logger from "./logger.js";
 import type { RedisClient } from "../types/index.js";
 
 const logger = new Logger(config.serviceName, config.logLevel);
