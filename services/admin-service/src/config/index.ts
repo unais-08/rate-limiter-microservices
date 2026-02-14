@@ -1,6 +1,13 @@
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
-dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const serviceRoot = path.resolve(__dirname, "..", "..");
+
+// Load .env.local first (takes priority), then fallback to .env
+dotenv.config({ path: path.join(serviceRoot, ".env.local") });
+dotenv.config({ path: path.join(serviceRoot, ".env") });
 
 interface Config {
   port: number;
@@ -35,9 +42,9 @@ const config: Config = {
   nodeEnv: process.env.NODE_ENV || "development",
 
   // Rate Limiting Defaults
-  defaultTokens: parseInt(process.env.DEFAULT_TOKENS || "2", 10),
-  refillRate: parseFloat(process.env.REFILL_RATE || "0.2"),
-  maxBurst: parseInt(process.env.MAX_BURST || "2", 10),
+  defaultTokens: parseInt("2", 10),
+  refillRate: parseFloat("0.2"),
+  maxBurst: parseInt("2", 10),
 
   // Admin Auth
   adminUsername: process.env.ADMIN_USERNAME || "admin",

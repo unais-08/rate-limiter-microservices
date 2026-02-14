@@ -1,10 +1,16 @@
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import { type Server } from "http";
 import createApp from "./app.js";
 import prisma from "./config/database.js";
 import Logger from "./utils/logger.js";
 
-dotenv.config();
+// Load environment variables with .env.local priority for local development
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const serviceRoot = path.resolve(__dirname, "..");
+dotenv.config({ path: path.join(serviceRoot, ".env.local") });
+dotenv.config({ path: path.join(serviceRoot, ".env") });
 
 const logger = new Logger("usage-analytics-service:server");
 const PORT = parseInt(process.env.PORT || "3003", 10);

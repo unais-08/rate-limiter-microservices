@@ -1,8 +1,13 @@
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import type { Config, LogLevel } from "../types/index.js";
 
-// Load environment variables
-dotenv.config();
+// Load environment variables with .env.local priority for local development
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const serviceRoot = path.resolve(__dirname, "..", "..");
+dotenv.config({ path: path.join(serviceRoot, ".env.local") });
+dotenv.config({ path: path.join(serviceRoot, ".env") });
 
 const config: Config = {
   port: parseInt(process.env.PORT || "3000", 10),

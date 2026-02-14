@@ -1,9 +1,14 @@
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 import type { Config, LogLevel } from "../types/index.js";
 import Logger from "../utils/logger.js";
 
-// Load environment variables
-dotenv.config();
+// Load environment variables with .env.local priority for local development
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const serviceRoot = path.resolve(__dirname, "..", "..");
+dotenv.config({ path: path.join(serviceRoot, ".env.local") });
+dotenv.config({ path: path.join(serviceRoot, ".env") });
 const logger = new Logger("rate-limiter-service", "debug");
 const config: Config = {
   port: parseInt(process.env.PORT || "3001", 10),
@@ -22,11 +27,11 @@ const config: Config = {
   // Rate limiting defaults
   rateLimit: {
     // Default tokens per API key
-    defaultTokens: parseInt(process.env.DEFAULT_TOKENS ?? "2", 10),
+    defaultTokens: parseInt("2", 10),
     // Token refill rate (tokens per second)
-    refillRate: parseFloat(process.env.REFILL_RATE ?? "0.2"),
+    refillRate: parseFloat("0.2"),
     // Maximum burst capacity
-    maxBurst: parseInt(process.env.MAX_BURST ?? "2", 10),
+    maxBurst: parseInt("2", 10),
   },
 };
 
