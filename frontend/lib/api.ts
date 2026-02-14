@@ -2,7 +2,7 @@ import axios, { AxiosRequestConfig, AxiosError } from "axios";
 
 // Service endpoints from environment variables
 const ADMIN_API_URL =
-  process.env.NEXT_PUBLIC_ADMIN_API_URL || "http://localhost:3004";
+  process.env.NEXT_PUBLIC_ADMIN_API_URL || "http://localhost:3002";
 const GATEWAY_API_URL =
   process.env.NEXT_PUBLIC_GATEWAY_API_URL || "http://localhost:3000";
 

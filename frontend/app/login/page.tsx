@@ -21,14 +21,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
-
+  const url = process.env.NEXT_PUBLIC_ADMIN_API_URL || "http://localhost:3002"; // Fallback to localhost if env variable is not set
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:3004/api/v1/auth/login", {
+      const response = await fetch(`${url}/api/v1/auth/login`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

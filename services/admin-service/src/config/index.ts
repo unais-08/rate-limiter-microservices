@@ -31,7 +31,7 @@ interface Config {
 }
 
 const config: Config = {
-  port: parseInt(process.env.PORT || "3004", 10),
+  port: parseInt(process.env.PORT || "3002", 10),
   nodeEnv: process.env.NODE_ENV || "development",
 
   // Rate Limiting Defaults
@@ -45,9 +45,11 @@ const config: Config = {
   jwtSecret: process.env.JWT_SECRET || "change-this-secret",
 
   // Service URLs
-  rateLimiterUrl: process.env.RATE_LIMITER_URL || "http://localhost:3002",
-  analyticsUrl: process.env.ANALYTICS_URL || "http://localhost:3003",
-  gatewayUrl: process.env.GATEWAY_URL || "http://localhost:3000",
+  rateLimiterUrl:
+    process.env.RATE_LIMITER_URL || "http://ratelimiter-ratelimit:3001",
+  analyticsUrl:
+    process.env.ANALYTICS_URL || "http://ratelimiter-analytics:3003",
+  gatewayUrl: process.env.GATEWAY_URL || "http://ratelimiter-gateway:3000",
 
   // Redis
   redis: {

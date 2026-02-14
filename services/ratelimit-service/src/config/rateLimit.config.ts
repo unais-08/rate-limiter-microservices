@@ -6,7 +6,7 @@ import Logger from "../utils/logger.js";
 dotenv.config();
 const logger = new Logger("rate-limiter-service", "debug");
 const config: Config = {
-  port: parseInt(process.env.PORT || "3002", 10),
+  port: parseInt(process.env.PORT || "3001", 10),
   env: process.env.NODE_ENV || "development",
   serviceName: "rate-limiter-service",
   logLevel: (process.env.LOG_LEVEL as LogLevel) || "info",

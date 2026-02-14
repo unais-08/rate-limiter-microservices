@@ -12,13 +12,13 @@ const config: Config = {
 
   // Rate Limiter Service
   rateLimiterService: {
-    url: process.env.RATE_LIMITER_URL || "http://localhost:3002",
+    url: process.env.RATE_LIMITER_URL || "http://localhost:3001",
     timeout: parseInt(process.env.RATE_LIMITER_TIMEOUT || "5000", 10),
   },
 
   // Backend Service
   backendService: {
-    url: process.env.BACKEND_SERVICE_URL || "http://localhost:3001",
+    url: process.env.BACKEND_SERVICE_URL || "http://localhost:5000",
     timeout: parseInt(process.env.BACKEND_TIMEOUT || "30000", 10),
   },
 

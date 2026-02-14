@@ -1,0 +1,347 @@
+services:
+  # ========================================
+  # PostgreSQL Database (5433 → 5432)
+  # ========================================
+  postgres:
+    container_name: ratelimiter-postgres
+    image: postgres:16.1-alpine
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-developer}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-developer}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    networks:
+      - ratelimiter-network
+
+  # ========================================
+  # Redis (6380 → 6379)
+  # ========================================
+  redis:
+    container_name: ratelimiter-redis
+    image: redis:7.2-alpine
+    ports:
+      - "6380:6379"
+    command: >
+      sh -c "
+      if [ -n \"$$REDIS_PASSWORD\" ]; then
+        redis-server --appendonly yes --requirepass $$REDIS_PASSWORD;
+      else
+        redis-server --appendonly yes;
+      fi
+      "
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "sh",
+          "-c",
+          "redis-cli $${REDIS_PASSWORD:+-a $$REDIS_PASSWORD} ping | grep PONG",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    networks:
+      - ratelimiter-network
+
+  # ========================================
+  # Gateway (3000)
+  # ========================================
+  gateway-service:
+    container_name: ratelimiter-gateway
+    build:
+      context: ./services/gateway-service
+      args:
+        HTTP_PROXY: ""
+        HTTPS_PROXY: ""
+        NO_PROXY: "*"
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      RATE_LIMITER_URL: http://ratelimiter-ratelimit:3001
+      ADMIN_SERVICE_URL: http://ratelimiter-admin:3002
+      ANALYTICS_SERVICE_URL: http://ratelimiter-analytics:3003
+      BACKEND_SERVICE_URL: http://ratelimiter-backend:5000
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DATABASE_URL: postgresql://${POSTGRES_USER:-developer}:${POSTGRES_PASSWORD:-dev}@postgres:5432/postgres
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      ratelimit-service:
+        condition: service_started
+      admin-service:
+        condition: service_started
+      analytics-service:
+        condition: service_started
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    networks:
+      - ratelimiter-network
+
+  # ========================================
+  # Rate Limiter (3001)
+  # ========================================
+  ratelimit-service:
+    container_name: ratelimiter-ratelimit
+    build:
+      context: ./services/ratelimit-service
+      args:
+        HTTP_PROXY: ""
+        HTTPS_PROXY: ""
+        NO_PROXY: "*"
+    ports:
+      - "3001:3001"
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      DATABASE_URL: postgresql://${POSTGRES_USER:-developer}:${POSTGRES_PASSWORD:-dev}@postgres:5432/postgres
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    networks:
+      - ratelimiter-network
+
+  # ========================================
+  # Admin (3002)
+  # ========================================
+  admin-service:
+    container_name: ratelimiter-admin
+    build:
+      context: ./services/admin-service
+      args:
+        HTTP_PROXY: ""
+        HTTPS_PROXY: ""
+        NO_PROXY: "*"
+    ports:
+      - "3002:3002"
+    environment:
+      NODE_ENV: production
+      PORT: 3002
+      DATABASE_URL: postgresql://${POSTGRES_USER:-developer}:${POSTGRES_PASSWORD:-dev}@postgres:5432/admin_service_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-change-this-in-production}
+      ANALYTICS_URL: http://ratelimiter-analytics:3003
+      RATE_LIMITER_URL: http://ratelimiter-ratelimit:3001
+      GATEWAY_URL: http://ratelimiter-gateway:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      analytics-service:
+        condition: service_started
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    networks:
+      - ratelimiter-network
+
+  # ========================================
+  # Analytics (3003)
+  # ========================================
+  analytics-service:
+    container_name: ratelimiter-analytics
+    build:
+      context: ./services/analytics-service
+      args:
+        HTTP_PROXY: ""
+        HTTPS_PROXY: ""
+        NO_PROXY: "*"
+    ports:
+      - "3003:3003"
+    environment:
+      NODE_ENV: production
+      PORT: 3003
+      DATABASE_URL: postgresql://${POSTGRES_USER:-developer}:${POSTGRES_PASSWORD:-dev}@postgres:5432/rate_limiter_analytics
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    networks:
+      - ratelimiter-network
+
+  # ========================================
+  # Dummy Backend (5000)
+  # ========================================
+  dummy-backend-service:
+    container_name: ratelimiter-backend
+    build:
+      context: ./services/dummy-backend-service
+      args:
+        HTTP_PROXY: ""
+        HTTPS_PROXY: ""
+        NO_PROXY: "*"
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+        reservations:
+          cpus: "0.1"
+          memory: 128M
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    networks:
+      - ratelimiter-network
+
+  # ========================================
+  # Frontend (8080)
+  # ========================================
+  frontend:
+    container_name: ratelimiter-frontend
+    build:
+      context: ./frontend
+      args:
+        HTTP_PROXY: ""
+        HTTPS_PROXY: ""
+        NO_PROXY: "*"
+    ports:
+      - "8080:8080"
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      NEXT_PUBLIC_GATEWAY_API_URL: http://localhost:3000
+      NEXT_PUBLIC_ADMIN_API_URL: http://localhost:3002
+    depends_on:
+      - gateway-service
+      - admin-service
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+    networks:
+      - ratelimiter-network
+
+# ========================================
+# Networks
+# ========================================
+networks:
+  ratelimiter-network:
+    driver: bridge
+
+# ========================================
+# Volumes
+# ========================================
+volumes:
+  postgres-data:
+  redis-data:

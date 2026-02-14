@@ -21,6 +21,7 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const url = process.env.NEXT_PUBLIC_ADMIN_API_URL || "http://localhost:3002"; // Fallback to localhost if env variable is not set
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,16 +35,13 @@ export default function RegisterPage() {
     }
 
     try {
-      const response = await fetch(
-        "http://localhost:3004/api/v1/auth/register",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ email, password, name }),
+      const response = await fetch(`${url}/api/v1/auth/register`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({ email, password, name }),
+      });
 
       const data = await response.json();
 
