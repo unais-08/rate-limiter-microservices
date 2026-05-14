@@ -28,7 +28,7 @@
     "build:frontend": "cd frontend && npm run build",
     "install": "npm install && npm run install:services",
     "install:services": "cd services/admin-service && npm install && cd ../gateway-service && npm install && cd ../ratelimit-service && npm install && cd ../analytics-service && npm install && cd ../dummy-backend-service && npm install && cd ../../frontend && npm install",
-    "clean": "rm -rf node_modules services/*/node_modules frontend/node_modules",
+    "clean": "rm -rf node_modules services/*/node_modules services/*/dist frontend/node_modules",
     "clean:build": "rm -rf services/*/dist frontend/.next",
     "clean:all": "npm run clean && npm run clean:build",
     "docker:dev": "docker compose up -d",
